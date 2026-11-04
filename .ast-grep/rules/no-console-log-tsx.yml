@@ -1,0 +1,6 @@
+id: no-console-log-tsx
+language: Tsx
+severity: warning
+message: Avoid console.log in committed code; use a logger or remove it.
+rule:
+  pattern: console.log($$$ARGS)

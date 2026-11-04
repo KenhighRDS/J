@@ -1,0 +1,6 @@
+id: no-debugger-tsx
+language: Tsx
+severity: error
+message: Remove `debugger` statements before committing.
+rule:
+  pattern: debugger

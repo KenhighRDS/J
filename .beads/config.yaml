@@ -73,3 +73,6 @@
 
 sync:
     remote: "git+https://github.com/KenhighRDS/J"
+export:
+    auto: true
+    git-add: true

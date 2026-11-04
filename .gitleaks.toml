@@ -1,0 +1,10 @@
+# Gitleaks (secret scanning). Extends the built-in default ruleset.
+# Mark an intentional test value with a trailing `# gitleaks:allow` comment.
+title = "j"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Lockfiles contain integrity hashes, not secrets"
+paths = ['''(^|/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lock|bun\.lockb)$''']

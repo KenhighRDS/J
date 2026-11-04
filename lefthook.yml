@@ -1,0 +1,42 @@
+# Git hooks for this repo, managed by lefthook (https://lefthook.dev).
+# One-time per clone: `lefthook install` (scripts/bootstrap.sh does it).
+# Emergency bypass for a single command: LEFTHOOK=0 git commit ...
+min_version: 2.0.0
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: gitleaks (no secrets in staged changes)
+      run: |
+        if ! command -v gitleaks >/dev/null 2>&1; then
+          echo "gitleaks is not installed; run scripts/bootstrap.sh" >&2; exit 1
+        fi
+        gitleaks git --pre-commit --staged --redact --no-banner
+
+    - name: ast-grep (structural lint on staged JS/TS)
+      glob: "*.{js,jsx,ts,tsx,mjs,cjs}"
+      run: |
+        command -v ast-grep >/dev/null 2>&1 || { echo "ast-grep missing; skipping"; exit 0; }
+        ast-grep scan --config sgconfig.yml {staged_files}
+
+    - name: project lint (npm run lint, when defined)
+      run: |
+        if [ -f package.json ]; then npm run --if-present -s lint; fi
+
+    - name: beads export (.beads/issues.jsonl)
+      run: |
+        { command -v bd >/dev/null 2>&1 && [ -d .beads ]; } || exit 0
+        BD_GIT_HOOK=1 bd hooks run pre-commit
+
+pre-push:
+  jobs:
+    - name: semgrep (SAST, whole tree)
+      run: |
+        command -v semgrep >/dev/null 2>&1 || { echo "semgrep missing; skipping"; exit 0; }
+        semgrep scan --config p/default --metrics=off --error --quiet
+
+    - name: typecheck, test, build (npm scripts, when defined)
+      run: |
+        if [ -f package.json ]; then
+          npm run --if-present -s typecheck && npm run --if-present -s test && npm run --if-present -s build
+        fi

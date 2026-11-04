@@ -1,0 +1,7 @@
+# ast-grep project config (https://ast-grep.github.io). Rules live in .ast-grep/rules.
+ruleDirs:
+  - .ast-grep/rules
+utilDirs:
+  - .ast-grep/utils
+testConfigs:
+  - testDir: .ast-grep/tests
