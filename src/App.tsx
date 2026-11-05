@@ -4,11 +4,18 @@ import { isConfigured } from "./lib/supabase";
 import { Shell } from "./components/Shell";
 import { AndroidBar } from "./components/AndroidBar";
 import { PushListener } from "./components/PushListener";
+import { BiometricGate } from "./components/BiometricGate";
+import { UpdateSheet } from "./components/UpdateSheet";
+import { Alerts } from "./routes/Alerts";
+import { Tracker } from "./routes/Tracker";
 import { Login } from "./routes/Login";
 import { Code } from "./routes/Code";
 import { Welcome } from "./routes/Welcome";
 import { Home } from "./routes/Home";
+import { SignalRoute } from "./routes/Signal";
+import { Preview } from "./routes/Preview";
 import { Reports } from "./routes/Reports";
+import { ReportRoute } from "./routes/Report";
 import { Settings } from "./routes/Settings";
 import { Admin } from "./routes/Admin";
 import { Logo, Spinner } from "./components/ui";
@@ -32,6 +39,7 @@ export default function App() {
   }
   if (loading) return <Splash />;
   if (pathname === "/welcome") return <Welcome />;
+  if (import.meta.env.DEV && pathname.startsWith("/__preview")) return <Preview />;
   if (!session) {
     return (
       <Routes>
@@ -43,19 +51,24 @@ export default function App() {
   }
   if (!profile) return <div className="app-frame items-center justify-center"><Spinner /></div>;
   return (
-    <>
+    <BiometricGate>
       <AndroidBar />
       <PushListener />
+      <UpdateSheet />
       <Routes>
         <Route element={<Shell profile={profile} />}>
-          <Route index element={<Home />} />
-          <Route path="/reports" element={<Reports />} />
+          <Route index element={<Home profile={profile} />} />
+          <Route path="/signal/:id" element={<SignalRoute profile={profile} reloadProfile={reload} />} />
+          <Route path="/reports" element={<Reports profile={profile} />} />
+          <Route path="/reports/:id" element={<ReportRoute profile={profile} />} />
           <Route path="/settings" element={<Settings profile={profile} reload={reload} />} />
           {profile.role === "admin" && <Route path="/admin/*" element={<Admin userId={profile.id} />} />}
           <Route path="/login/*" element={<Navigate to="/" replace />} />
+          <Route path="/settings/alerts" element={<Alerts />} />
+          <Route path="/settings/tracker" element={<Tracker profile={profile} reload={reload} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
-    </>
+    </BiometricGate>
   );
 }
