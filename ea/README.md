@@ -11,7 +11,7 @@
 input string InpJKey = "";                // from J → Admin → EA sources
 
 int OnInit() {
-  J_Init("https://<ref>.supabase.co/functions/v1/ingest-signal", InpJKey, "XAU EA", InpMagic);
+  J_Init("https://ismyqqqfmvvlupufcqys.supabase.co/functions/v1/ingest-signal", InpJKey, "XAU EA", InpMagic);
   EventSetTimer(5);
   // ... your init
   return INIT_SUCCEEDED;
@@ -20,4 +20,4 @@ void OnTradeTransaction(const MqlTradeTransaction& t, const MqlTradeRequest& rq,
 void OnTimer() { J_OnTimer(); /* ... */ }
 ```
 
-MetaTrader: Tools → Options → Expert Advisors → Allow WebRequest for listed URL → add `https://<ref>.supabase.co`.
+MetaTrader: Tools → Options → Expert Advisors → Allow WebRequest for listed URL → add `https://ismyqqqfmvvlupufcqys.supabase.co`.
