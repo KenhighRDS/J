@@ -4,4 +4,8 @@
     <string name="title_activity_main">J</string>
     <string name="package_name">com.jsignals.app</string>
     <string name="custom_url_scheme">com.jsignals.app</string>
+    <string name="alert_new_signal">New signal</string>
+    <string name="alert_until_expiry">until it expires</string>
+    <string name="alert_open">Open</string>
+    <string name="alert_skip">Skip</string>
 </resources>

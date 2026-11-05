@@ -1,0 +1,75 @@
+# Builds the signed Android APK only when the commit message contains [apk] or [release] (Actions minutes are limited).
+# Publishes J-<version>.apk to a release in the releases repo and updates latest.json there.
+name: apk
+on:
+  push:
+    branches: ["**"]
+jobs:
+  apk:
+    if: contains(github.event.head_commit.message, '[apk]') || contains(github.event.head_commit.message, '[release]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      J_VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - name: Install and build web
+        run: |
+          npm ci
+          npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_VAPID_KEY: ${{ secrets.VITE_FIREBASE_VAPID_KEY }}
+          VITE_SITE_URL: ${{ vars.SITE_URL || 'https://j-signals.netlify.app' }}
+          VITE_RELEASES_LATEST_JSON: https://raw.githubusercontent.com/${{ vars.RELEASES_REPO || 'KenhighRDS/j-releases' }}/main/latest.json
+          VITE_RELEASES_PAGE: https://github.com/${{ vars.RELEASES_REPO || 'KenhighRDS/j-releases' }}/releases
+      - name: Capacitor sync
+        run: npx cap sync android
+      - name: Firebase config and release keystore
+        run: |
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+          echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 -d > android/release.keystore
+      - name: Version
+        id: v
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Assemble release
+        working-directory: android
+        env:
+          J_KEYSTORE_PATH: ${{ github.workspace }}/android/release.keystore
+          J_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          J_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          J_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          J_VERSION_NAME: ${{ steps.v.outputs.version }}
+        run: ./gradlew --no-daemon assembleRelease
+      - name: Collect APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk "J-${{ steps.v.outputs.version }}.apk"
+      - uses: actions/upload-artifact@v4
+        with: { name: J-${{ steps.v.outputs.version }}, path: J-${{ steps.v.outputs.version }}.apk }
+      - name: Publish to releases repo
+        if: ${{ secrets.RELEASES_TOKEN != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          REPO: ${{ vars.RELEASES_REPO || 'KenhighRDS/j-releases' }}
+          VERSION: ${{ steps.v.outputs.version }}
+          CODE: ${{ github.run_number }}
+        run: |
+          TAG="v${VERSION}-${CODE}"
+          NOTES="$(git log -1 --pretty=%B | sed 's/\[apk\]//; s/\[release\]//')"
+          gh release create "$TAG" "J-${VERSION}.apk" --repo "$REPO" --title "J ${VERSION} (${CODE})" --notes "$NOTES"
+          URL="https://github.com/${REPO}/releases/download/${TAG}/J-${VERSION}.apk"
+          git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" rel
+          cd rel
+          node -e "require('fs').writeFileSync('latest.json', JSON.stringify({version: process.env.VERSION, versionCode: Number(process.env.CODE), url: process.env.URL, notes: process.env.NOTES, published_at: new Date().toISOString()}, null, 2) + '\n')" 
+          git config user.name "j-ci" && git config user.email "ci@users.noreply.github.com"
+          git add latest.json && git commit -m "J ${VERSION} (${CODE})" && git push

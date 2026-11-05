@@ -10,7 +10,9 @@
     "lint": "oxlint src",
     "preview": "vite preview",
     "cap:sync": "cap sync android",
-    "icons": "bash scripts/gen-icons.sh"
+    "icons": "bash scripts/gen-icons.sh",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:db": "bash supabase/tests/run.sh"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",

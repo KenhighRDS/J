@@ -4,6 +4,7 @@ import { listenPushMessages, refreshPushIfGranted } from "../lib/webPush";
 import { hasNativeAlerts, JAlert } from "../lib/native";
 import { supabase } from "../lib/supabase";
 import { appVersion } from "../lib/platform";
+import { launchFlags } from "./BiometricGate";
 
 /** Wires push into the running app: token refresh on start, worker messages → navigation, native alert opens → card. */
 export function PushListener() {
@@ -16,8 +17,8 @@ export function PushListener() {
     );
     let handle: { remove: () => void } | null = null;
     if (hasNativeAlerts) {
-      void JAlert.consumeLaunchRoute().then(({ route }) => { if (route) nav(route); }).catch(() => undefined);
-      void JAlert.addListener("signal", (e) => { if (e.route) nav(e.route); }).then((h) => { handle = h; });
+      void JAlert.consumeLaunchRoute().then(({ route }) => { if (route) { launchFlags.fromAlert = true; nav(route); } }).catch(() => undefined);
+      void JAlert.addListener("signal", (e) => { if (e.route) { launchFlags.fromAlert = true; nav(e.route); } }).then((h) => { handle = h; });
       void JAlert.getToken().then(async ({ token, deviceSecret }) => {
         const secretHash = await sha256(deviceSecret);
         const { data: id } = await supabase.rpc("device_register", { p_platform: "android", p_token: token, p_app_version: appVersion, p_secret_hash: secretHash, p_user_agent: navigator.userAgent });
