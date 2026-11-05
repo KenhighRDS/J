@@ -1,7 +1,7 @@
 // wann-sync: pulls j-feed from the wann project every 15 minutes (cron key) or on demand by an admin
 // ({ catchup_user?: uuid } sends every live call in the window to one user who was just switched on).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { handler, json, readJson, fail } from "../_shared/http.ts";
+import { handler, json, readJson, fail, isCronCall } from "../_shared/http.ts";
 import { serviceClient } from "../_shared/supabase.ts";
 import { requireAdmin } from "../_shared/auth.ts";
 import { dispatchWannBatch, dispatchWannUpdate, dispatchWannQuestion } from "../_shared/dispatch.ts";
@@ -15,8 +15,7 @@ const pickWon = (pick: string, outcome: "home" | "draw" | "away") =>
 
 Deno.serve(handler(async (req) => {
   const sb = serviceClient();
-  const cronKey = Deno.env.get("J_CRON_KEY");
-  const isCron = cronKey && req.headers.get("x-j-cron-key") === cronKey;
+  const isCron = await isCronCall(req);
   let body: { catchup_user?: string } = {};
   try { body = await readJson(req); } catch { body = {}; }
   if (!isCron) await requireAdmin(req);

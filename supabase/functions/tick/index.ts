@@ -10,7 +10,7 @@ const PASSES = 4, PASS_MS = 15_000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 Deno.serve(handler(async (req) => {
-  requireCronKey(req);
+  await requireCronKey(req);
   const sb = serviceClient();
   const out = { expired: 0, rerings: 0, closed: 0, admins: 0, passes: 0 };
   const { count } = await sb.from("profiles").select("id", { count: "exact", head: true }).eq("role", "admin");

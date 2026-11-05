@@ -1,7 +1,7 @@
 // scheduler: hourly via pg_cron (cron key) — decides in America/New_York: weekly on Friday at report_hour_ny (Mon–Fri),
 // monthly on the last calendar day at report_hour_ny. Admins can call it with a JWT: { force: "weekly"|"monthly", date?: "YYYY-MM-DD" }.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { handler, json, readJson, fail } from "../_shared/http.ts";
+import { handler, json, readJson, fail, isCronCall } from "../_shared/http.ts";
 import { serviceClient } from "../_shared/supabase.ts";
 import { requireAdmin } from "../_shared/auth.ts";
 import { sendPush, type Device } from "../_shared/fcm.ts";
@@ -49,8 +49,7 @@ async function generate(sb: ReturnType<typeof serviceClient>, kind: "weekly" | "
 
 Deno.serve(handler(async (req) => {
   const sb = serviceClient();
-  const cronKey = Deno.env.get("J_CRON_KEY");
-  const isCron = cronKey && req.headers.get("x-j-cron-key") === cronKey;
+  const isCron = await isCronCall(req);
   let body: { force?: "weekly" | "monthly"; date?: string; notify?: boolean } = {};
   try { body = await readJson(req); } catch { body = {}; }
   if (!isCron) { await requireAdmin(req); if (!body.force) fail(400, "force: weekly|monthly required"); }

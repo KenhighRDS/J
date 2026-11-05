@@ -24,3 +24,11 @@ begin
   with x as (delete from public.signal_events where created_at < now() - interval '180 days' returning 1) select count(*) into d from x;
   return jsonb_build_object('push_log', a, 'rerings', b, 'tracker_positions', c, 'signal_events', d);
 end $$;
+
+-- cron key: generated here, stored privately, checked by the edge functions (no secret to paste)
+insert into private.config (key, value) values ('cron_key', encode(gen_random_bytes(24), 'hex')) on conflict (key) do nothing;
+create or replace function public.cron_key_check(p_key text) returns boolean
+language sql stable security definer set search_path = private as $$
+  select exists (select 1 from private.config where key = 'cron_key' and value = p_key and length(p_key) >= 32);
+$$;
+revoke execute on function public.cron_key_check(text) from public, anon, authenticated;
