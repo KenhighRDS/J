@@ -113,3 +113,73 @@ export async function runRerings(sb: SupabaseClient): Promise<{ sent: number; cl
   }
   return { sent, closed };
 }
+
+// ---------------- Wann signals ----------------
+interface WannCall { id: string; sport: string; competition: string; home: string; away: string; kickoff_utc: string; pick: string; pick_label: string; probability: number; status: string }
+export function wannTitle(c: WannCall): string { return `Wann · ${c.home} vs ${c.away}`; }
+
+/** New Wann calls: one alert for a batch ("Wann · 6 new games 85%+" → list) or the single card. */
+export async function dispatchWannBatch(sb: SupabaseClient, callIds: string[], onlyUser: string | null): Promise<{ sent: number }> {
+  if (!callIds.length) return { sent: 0 };
+  const { data: calls } = await sb.from("wann_calls").select("id,sport,competition,home,away,kickoff_utc,pick,pick_label,probability,status").in("id", callIds);
+  const cs = (calls ?? []) as WannCall[];
+  if (!cs.length) return { sent: 0 };
+  let q = sb.from("receipts").select("id,user_id,wann_call_id").in("wann_call_id", callIds).eq("status", "pending");
+  if (onlyUser) q = q.eq("user_id", onlyUser);
+  const { data: receipts } = await q;
+  const byUser = new Map<string, { id: string; wann_call_id: string }[]>();
+  for (const r of (receipts ?? []) as { id: string; user_id: string; wann_call_id: string }[]) byUser.set(r.user_id, [...(byUser.get(r.user_id) ?? []), r]);
+  const devices = await devicesFor(sb, [...byUser.keys()]);
+  const { data: every } = await sb.rpc("setting_num", { p_key: "re_ring_sec", p_default: 30 });
+  let sent = 0;
+  for (const [userId, rs] of byUser) {
+    const single = rs.length === 1 ? cs.find((c) => c.id === rs[0].wann_call_id) ?? null : null;
+    const first = cs.find((c) => c.id === rs[0].wann_call_id)!;
+    const kickoff = new Date(single?.kickoff_utc ?? first.kickoff_utc);
+    const title = single ? wannTitle(single) : `Wann · ${rs.length} new games 85%+`;
+    const body = single ? `${single.pick_label} · ${single.probability}% — tap to open` : `Tap to see the calls for the next 7 days`;
+    const route = single ? `/wann/${single.id}` : "/wann";
+    const ring = Math.max(60, Math.min(600, Math.round((kickoff.getTime() - Date.now()) / 1000)));
+    const content: PushContent = { title, body, route, ttlSec: Math.max(60, Math.round((kickoff.getTime() - Date.now()) / 1000)),
+      data: { notification_id: crypto.randomUUID(), type: "wann", wann_call_id: single?.id ?? "", symbol: single ? `${single.home} vs ${single.away}` : `${rs.length} games`, direction: "", order_type: "market", expires_at: single ? single.kickoff_utc : new Date(Date.now() + 600_000).toISOString(), ring_sec: String(Math.min(120, ring)), title, body } };
+    const mine = devices.filter((d) => d.user_id === userId);
+    for (const d of mine) { const res = await sendPush(sb, d, content, { wann_call_id: single?.id ?? null, kind: "wann" }); if (res.ok) sent++; }
+    await sb.from("receipts").update({ delivered_at: new Date().toISOString(), ring_count: 1, last_ring_at: new Date().toISOString() }).in("id", rs.map((r) => r.id));
+    if (mine.some((d) => d.platform === "web")) {
+      await sb.from("rerings").insert({ receipt_id: rs[0].id, user_id: userId, kind: "wann", title, body, route, data: { wann_call_id: single?.id ?? "" }, every_sec: Number(every) || 30,
+        until: new Date(Math.min(kickoff.getTime(), Date.now() + 10 * 60_000)).toISOString(), last_sent_at: new Date().toISOString() });
+    }
+  }
+  return { sent };
+}
+
+/** Withdrawn / finished: takers get it call-style (withdrawn) or as a result; everyone who received it gets the update. */
+export async function dispatchWannUpdate(sb: SupabaseClient, callId: string, kind: "withdrawn" | "finished", title: string, body: string): Promise<{ sent: number }> {
+  const { data: receipts } = await sb.from("receipts").select("id,user_id,status").eq("wann_call_id", callId);
+  const rs = (receipts ?? []) as { id: string; user_id: string; status: string }[];
+  const devices = await devicesFor(sb, rs.map((r) => r.user_id));
+  let sent = 0;
+  for (const r of rs) {
+    const taker = r.status === "taken" || r.status === "likely_taken";
+    if (kind === "finished" && !taker) continue;
+    const style = kind === "withdrawn" && taker ? "call" : "normal";
+    const content: PushContent = { title, body, route: `/wann/${callId}`, ttlSec: 3600,
+      data: { notification_id: crypto.randomUUID(), type: style === "call" ? "followup" : "info", style, followup: kind, wann_call_id: callId, symbol: title, direction: "", order_type: "market", ring_sec: "30", title, body } };
+    for (const d of devices.filter((x) => x.user_id === r.user_id)) { const res = await sendPush(sb, d, content, { wann_call_id: callId, kind: `wann:${kind}` }); if (res.ok) sent++; }
+  }
+  return { sent };
+}
+
+export async function dispatchWannQuestion(sb: SupabaseClient, callId: string, body: string): Promise<{ sent: number }> {
+  const { data: receipts } = await sb.from("receipts").select("id,user_id").eq("wann_call_id", callId).in("status", ["likely_taken", "opened"]).is("question_sent_at", null);
+  const rs = (receipts ?? []) as { id: string; user_id: string }[];
+  if (!rs.length) return { sent: 0 };
+  await sb.from("receipts").update({ question_sent_at: new Date().toISOString() }).in("id", rs.map((r) => r.id));
+  const devices = await devicesFor(sb, rs.map((r) => r.user_id));
+  let sent = 0;
+  for (const d of devices) {
+    const res = await sendPush(sb, d, { title: "Did you catch it?", body, route: `/wann/${callId}?ask=1`, ttlSec: 48 * 3600, data: { notification_id: crypto.randomUUID(), type: "question", wann_call_id: callId, symbol: "Wann", direction: "" } }, { wann_call_id: callId, kind: "wann:question" });
+    if (res.ok) sent++;
+  }
+  return { sent };
+}

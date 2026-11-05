@@ -9,6 +9,7 @@ import { Spinner, Empty, Button } from "../components/ui";
 import { useRealtime } from "../hooks/useRealtime";
 import { closeSignalNotifications } from "../lib/webPush";
 import { hasNativeAlerts, JAlert } from "../lib/native";
+import { PromoShare, ShareIconButton } from "../components/PromoShare";
 
 export function SignalRoute({ profile, reloadProfile }: { profile: Profile; reloadProfile: () => Promise<void> }) {
   const { id = "" } = useParams();
@@ -20,6 +21,7 @@ export function SignalRoute({ profile, reloadProfile }: { profile: Profile; relo
   const [missing, setMissing] = useState(false);
   const [balanceOpen, setBalanceOpen] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const load = useCallback(async () => {
     const [{ data: s }, { data: r }, { data: ev }] = await Promise.all([
@@ -62,7 +64,9 @@ export function SignalRoute({ profile, reloadProfile }: { profile: Profile; relo
         onTake={(lot) => { void rpc("receipt_take", { p_lot: lot }); }}
         onSkip={() => { void rpc("receipt_skip", {}); }}
         onClose={() => nav("/")}
-        onSetBalance={() => setBalanceOpen(true)} />
+        onSetBalance={() => setBalanceOpen(true)}
+        adminActions={profile.role === "admin" ? <ShareIconButton onClick={() => setShareOpen(true)} /> : undefined} />
+      {profile.role === "admin" && <PromoShare subject={{ kind: "signal", signal }} open={shareOpen} onClose={() => setShareOpen(false)} />}
       <BalanceSheet open={balanceOpen} onClose={() => setBalanceOpen(false)} profile={profile} onSaved={reloadProfile} />
       <QuestionSheet signal={signal} open={askOpen} onClose={() => { setAskOpen(false); if (params.get("ask")) setParams({}, { replace: true }); }}
         onAnswer={(yes) => { void rpc("receipt_answer", { p_yes: yes }); setAskOpen(false); setParams({}, { replace: true }); }} />

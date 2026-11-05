@@ -6,12 +6,15 @@ import { supabase } from "../lib/supabase";
 import { countdown, headline, pips, timeShort } from "../lib/format";
 import type { Profile, Receipt, Signal } from "../lib/types";
 import { useRealtime } from "../hooks/useRealtime";
+import { WannBadge } from "../components/WannCard";
 
 type Row = Receipt & { signal: Signal };
 
 export function Home({ profile }: { profile: Profile }) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [wann, setWann] = useState<{ live: number } | null>(null);
+  useEffect(() => { void supabase.from("wann_access").select("enabled").eq("user_id", profile.id).maybeSingle().then(async ({ data }) => { if (!data?.enabled) { setWann(null); return; } const { count } = await supabase.from("wann_calls").select("id", { count: "exact", head: true }).eq("status", "live").gte("kickoff_utc", new Date().toISOString()); setWann({ live: count ?? 0 }); }); }, [profile.id]);
   const load = useCallback(async () => {
     const { data } = await supabase.from("receipts").select("*, signal:signals(*)").eq("user_id", profile.id).eq("kind", "ea").order("created_at", { ascending: false }).limit(200);
     setRows(((data ?? []) as Row[]).filter((r) => r.signal));
@@ -26,6 +29,7 @@ export function Home({ profile }: { profile: Profile }) {
   return (
     <div className="mx-auto w-full max-w-md pb-4">
       <PageTitle>Signals</PageTitle>
+      {wann && <Link to="/wann" className="focus-ring mx-4 mb-3 flex items-center gap-3 rounded-[16px] border border-border bg-surface px-4 py-3"><WannBadge /><span className="flex-1 text-[15px]">{wann.live} live {wann.live === 1 ? "call" : "calls"} this week</span><span className="text-muted">›</span></Link>}
       {rows.length === 0 && <Empty title="No signals yet" body="When a trade is called, it rings here with everything to copy." />}
       {live.length > 0 && (
         <section className="px-4 space-y-2">
