@@ -36,3 +36,6 @@ android/app/google-services.json
 android/capacitor-cordova-android-plugins/build/
 *.keystore
 *.jks
+
+# filled GitHub-secrets file (scripts/github-secrets.sh)
+scripts/github-secrets.env

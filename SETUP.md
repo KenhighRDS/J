@@ -22,7 +22,7 @@ Project **J** exists: ref `ismyqqqfmvvlupufcqys`, URL `https://ismyqqqfmvvlupufc
 
 Re-deploying after code changes (CLI): `npm i -g supabase`, `supabase login`, `supabase link --project-ref ismyqqqfmvvlupufcqys`, then for a new migration file paste it into the SQL editor or let Claude apply it through the connector (the migrations were applied through the connector, so the CLI's migration history does not know them and `supabase db push` would try to re-run everything), and `supabase functions deploy --no-verify-jwt ingest-signal tracker-report receipt-action tick scheduler wann-sync` and `supabase functions deploy admin-invite admin-remove-user admin-send-signal admin-push-test`. The `_shared/` folder deploys with each function automatically.
 
-## 2. Firebase (project j-signals)
+## 2. Firebase (project jproject-58924)
 1. console.firebase.google.com → Add project **j-signals** (Analytics off).
 2. Add app → Android, package `com.jsignals.app` → download `google-services.json`. It is **not** committed; paste its contents into the GitHub Actions secret `GOOGLE_SERVICES_JSON` (step 6) and copy it to `android/app/google-services.json` for local builds.
 3. Add app → Web "J web" → copy apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId (Netlify env vars, step 5).
@@ -40,7 +40,7 @@ resend.com → Domains → add your domain → add the DNS records (SPF/DKIM TXT
 ## 5. Android signing + APK workflow (GitHub Actions)
 1. Make the release keystore once and keep it forever (updates must be signed with the same key):
    `keytool -genkeypair -v -keystore j-release.keystore -alias j -keyalg RSA -keysize 2048 -validity 10000`
-2. Repo → Settings → Secrets and variables → Actions → secrets: `ANDROID_KEYSTORE_BASE64` (`base64 -w0 j-release.keystore`), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (`j`), `ANDROID_KEY_PASSWORD`, `GOOGLE_SERVICES_JSON`, all the `VITE_*` values from step 4.2, and `RELEASES_TOKEN` (a fine-grained PAT with Contents: write on `j-releases`). Variables: `RELEASES_REPO` = `KenhighRDS/j-releases`, `SITE_URL`.
+2. Secrets and variables, in one go: `gh auth login`, `cp scripts/github-secrets.env.example scripts/github-secrets.env`, fill in the keystore path and passwords and the `RELEASES_TOKEN` (a fine-grained PAT with Contents: read and write on `j-releases`), then `bash scripts/github-secrets.sh`. It sets the 15 secrets (`ANDROID_KEYSTORE_BASE64`, the three keystore values, `GOOGLE_SERVICES_JSON` from `android/app/google-services.json`, the public `VITE_*` values, `RELEASES_TOKEN`) and the variables `RELEASES_REPO` and `SITE_URL`. Nothing in that file leaves your PC.
 3. Build: push a commit whose message contains `[apk]` or `[release]`. The workflow builds, signs, uploads `J-<version>.apk` to a release in `j-releases` and rewrites `latest.json` (version, versionCode = run number, url, notes). Bump `version` in `package.json` for a new user-facing version.
 4. Local debug build: `npm run build && npx cap sync android && cd android && ./gradlew assembleDebug` (needs `android/app/google-services.json` and the Android SDK).
 
