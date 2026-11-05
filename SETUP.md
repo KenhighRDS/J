@@ -66,6 +66,18 @@ resend.com → Domains → add your domain → add the DNS records (SPF/DKIM TXT
 ## 8. Go-live check
 Invite a second email of yours, install on both phones, send a test from Admin, then a real one from an EA on a demo account, and run the acceptance checklist below.
 
+## Staying on the free tiers (checked against the current plan limits)
+Supabase Free: 500,000 edge-function calls/month, 500 MB database, 10 GB egress, 2 active projects, pause after 7 idle days, 150 s per function call.
+- **Cron is gated.** `tick` runs at most once a minute and only when a signal is about to expire or an iPhone re-ring is due; one call runs four 15-second passes (about 50 s, under the 150 s limit). Idle days cost 0 calls; a busy signal day costs at most 1,440. The scheduler is 720/month, `wann-sync` 2,880/month and only while someone has Wann on. Worst realistic month: under 50,000 calls, a tenth of the quota.
+- **Database stays small.** A daily job deletes `push_log` after 14 days, finished re-rings after 2 days, unmatched tracker positions after 60 days, old signal events after 180 days, and pg_cron's run history after 7 days. Signals, receipts and reports are kept; at ~1 KB each, years of signals fit in a few MB.
+- **Egress is tiny.** Pushes carry a few hundred bytes; the app's JSON responses are small. Report and promo images are rendered on the phone, never served by Supabase.
+- **Pausing.** The hourly scheduler and your own logins are normal API activity; if Supabase emails a pause warning, open the dashboard once.
+- **Two free projects.** `J` needs a slot: pause or delete `35Kb`, or move `wann` into a second free organization (free orgs can be created without a card).
+
+GitHub Free: 2,000 Actions minutes/month on private repos, 500 MB artifact storage. The APK job only runs on commits marked `[apk]`/`[release]` (about 8 minutes each), cancels superseded runs, keeps artifacts 7 days, and publishes to the public `j-releases` repo where releases are free and unlimited.
+
+Netlify Free: 300 build minutes and 100 GB bandwidth/month. Only `main` builds; turn off Deploy Previews and branch deploys (Site configuration → Build & deploy → Branches and deploy contexts) so pushes to other branches cost nothing. Firebase Cloud Messaging is free. Resend Free: 3,000 emails/month and 100/day (invites plus login codes).
+
 ## Acceptance checklist
 Automated here: schema and receipt rules (`supabase/tests/run.sh`), lot math (`npm test`), type-check and build, Android compile. On your phones:
 - [ ] Invite → email from your domain → confirm → code login works; a non-invited email is refused.

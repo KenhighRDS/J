@@ -5,6 +5,7 @@ import { handler, json, readJson, fail } from "../_shared/http.ts";
 import { serviceClient } from "../_shared/supabase.ts";
 import { requireAdmin } from "../_shared/auth.ts";
 import { sendPush, type Device } from "../_shared/fcm.ts";
+import { ensureAdmins } from "../_shared/admins.ts";
 
 function nyParts(d = new Date()): { y: number; m: number; day: number; hour: number; weekday: number } {
   const f = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hour12: false, weekday: "short" });
@@ -62,6 +63,10 @@ Deno.serve(handler(async (req) => {
     out[body.force] = await generate(sb, body.force, p.start, p.end, body.notify ?? false);
     return json(out);
   }
+  // hourly housekeeping (cheap): admin seeding, close-question timeouts
+  out.admins = await ensureAdmins(sb);
+  const { data: timeouts } = await sb.rpc("receipts_question_timeout");
+  out.question_timeouts = timeouts ?? 0;
   if (ny.hour !== reportHour) return json({ ...out, skipped: "not the report hour" });
   if (ny.weekday === 5) { const p = periodFor("weekly", ny); out.weekly = await generate(sb, "weekly", p.start, p.end, true); }
   if (ny.day === lastDay(ny.y, ny.m)) { const p = periodFor("monthly", ny); out.monthly = await generate(sb, "monthly", p.start, p.end, true); }

@@ -4,6 +4,9 @@ name: apk
 on:
   push:
     branches: ["**"]
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   apk:
     if: contains(github.event.head_commit.message, '[apk]') || contains(github.event.head_commit.message, '[release]')
@@ -55,7 +58,7 @@ jobs:
       - name: Collect APK
         run: cp android/app/build/outputs/apk/release/app-release.apk "J-${{ steps.v.outputs.version }}.apk"
       - uses: actions/upload-artifact@v4
-        with: { name: J-${{ steps.v.outputs.version }}, path: J-${{ steps.v.outputs.version }}.apk }
+        with: { name: J-${{ steps.v.outputs.version }}, path: J-${{ steps.v.outputs.version }}.apk, retention-days: 7 }
       - name: Publish to releases repo
         if: ${{ secrets.RELEASES_TOKEN != '' }}
         env:
