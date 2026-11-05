@@ -23,3 +23,16 @@ coverage/
 .serena/cache/
 .playwright-mcp/
 .semgrep/
+
+# --- android (Capacitor) ---
+android/.gradle/
+android/build/
+android/app/build/
+android/app/release/
+android/local.properties
+android/.idea/
+android/*.iml
+android/app/google-services.json
+android/capacitor-cordova-android-plugins/build/
+*.keystore
+*.jks

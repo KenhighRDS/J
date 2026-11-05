@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">J</string>
+    <string name="title_activity_main">J</string>
+    <string name="package_name">com.jsignals.app</string>
+    <string name="custom_url_scheme">com.jsignals.app</string>
+</resources>

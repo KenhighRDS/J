@@ -1,0 +1,40 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+@theme {
+  --color-bg: #000000;
+  --color-surface: #0b0b0c;
+  --color-surface-2: #141416;
+  --color-border: #232326;
+  --color-text: #f5f5f7;
+  --color-muted: #8e8e93;
+  --color-buy: #2fbf71;
+  --color-sell: #e5484d;
+  --color-chrome-1: #ffffff;
+  --color-chrome-2: #bfc3c9;
+  --color-chrome-3: #6e7279;
+  --font-sans: "Inter Variable", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, monospace;
+  --radius-card: 16px;
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root { --app-h: 100vh; color-scheme: dark; }
+html, body, #root { height: 100%; margin: 0; background: #000; color: var(--color-text); }
+body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
+.app-frame { height: var(--app-h); display: flex; flex-direction: column; padding-top: env(safe-area-inset-top); background: #000; }
+.scroll-area { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.chrome { background: linear-gradient(180deg, #fff 0%, #bfc3c9 55%, #6e7279 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.chrome-bg { background: linear-gradient(180deg, #fff 0%, #bfc3c9 55%, #6e7279 100%); }
+.hairline { border-color: var(--color-border); }
+.tabular { font-variant-numeric: tabular-nums; }
+.no-select { user-select: none; -webkit-user-select: none; }
+@keyframes j-fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.fade-up { animation: j-fade-up 320ms var(--ease-out-quint) both; }
+@keyframes j-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+.pulse { animation: j-pulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .fade-up, .pulse { animation: none; } }
+input, button { font: inherit; }
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+.focus-ring:focus-visible { outline: 2px solid #bfc3c9; outline-offset: 2px; }
