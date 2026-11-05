@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 import { appVersion, isAndroidNative } from "../lib/platform";
 import type { Profile } from "../lib/types";
 import { NotificationsCard } from "../components/NotificationsCard";
+import { FingerprintRow } from "../components/FingerprintRow";
 
 export function Settings({ profile, reload }: { profile: Profile; reload: () => Promise<void> }) {
   const [balanceOpen, setBalanceOpen] = useState(false);
@@ -19,11 +20,12 @@ export function Settings({ profile, reload }: { profile: Profile; reload: () => 
         <Card>
           <Row label="Account balance" value={money} onClick={() => setBalanceOpen(true)} trailing={<Chevron />} />
           <Row label="Risk per trade" value={`${profile.risk_pct}%`} onClick={() => setBalanceOpen(true)} trailing={<Chevron />} />
-          <Row label="MT5 tracker" value={profile.balance_source === "tracker" ? "Connected" : "Not connected"} onClick={() => { window.location.assign("/settings/tracker"); }} trailing={<Chevron />} />
+          <Link to="/settings/tracker" className="focus-ring flex items-center min-h-12 px-4 py-3"><span className="text-[15px]">MT5 tracker</span><span className="ml-auto flex items-center gap-2 text-[15px] text-muted">{profile.balance_source === "tracker" ? "Connected" : "Not connected"}<Chevron /></span></Link>
         </Card>
         {isAndroidNative && (
           <Card>
-            <Link to="/settings/alerts" className="focus-ring flex items-center min-h-12 px-4 py-3"><span className="text-[15px]">Alerts and permissions</span><span className="ml-auto text-muted"><Chevron /></span></Link>
+            <Link to="/settings/alerts" className="focus-ring flex items-center min-h-12 px-4 py-3 border-b border-border"><span className="text-[15px]">Alerts and permissions</span><span className="ml-auto text-muted"><Chevron /></span></Link>
+            <FingerprintRow />
           </Card>
         )}
         <Card>
