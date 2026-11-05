@@ -20,7 +20,7 @@ Project **J** exists: ref `ismyqqqfmvvlupufcqys`, URL `https://ismyqqqfmvvlupufc
 6. Project Settings → API: the Project URL and anon key are already in Netlify (step 4); copy them again for the APK secrets (step 5).
 7. Your admin account is created automatically on the first `tick` run after `J_ADMIN_EMAILS` is set (within a minute). Sign in with a code.
 
-Re-deploying after code changes (CLI): `npm i -g supabase`, `supabase login`, `supabase link --project-ref ismyqqqfmvvlupufcqys`, then `supabase db push` for new migrations, `supabase functions deploy --no-verify-jwt ingest-signal tracker-report receipt-action tick scheduler wann-sync` and `supabase functions deploy admin-invite admin-remove-user admin-send-signal admin-push-test`. The `_shared/` folder deploys with each function automatically.
+Re-deploying after code changes (CLI): `npm i -g supabase`, `supabase login`, `supabase link --project-ref ismyqqqfmvvlupufcqys`, then for a new migration file paste it into the SQL editor or let Claude apply it through the connector (the migrations were applied through the connector, so the CLI's migration history does not know them and `supabase db push` would try to re-run everything), and `supabase functions deploy --no-verify-jwt ingest-signal tracker-report receipt-action tick scheduler wann-sync` and `supabase functions deploy admin-invite admin-remove-user admin-send-signal admin-push-test`. The `_shared/` folder deploys with each function automatically.
 
 ## 2. Firebase (project j-signals)
 1. console.firebase.google.com → Add project **j-signals** (Analytics off).
