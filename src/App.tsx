@@ -3,6 +3,7 @@ import { useSession, useProfile } from "./lib/auth";
 import { isConfigured } from "./lib/supabase";
 import { Shell } from "./components/Shell";
 import { AndroidBar } from "./components/AndroidBar";
+import { PushListener } from "./components/PushListener";
 import { Login } from "./routes/Login";
 import { Code } from "./routes/Code";
 import { Welcome } from "./routes/Welcome";
@@ -44,12 +45,13 @@ export default function App() {
   return (
     <>
       <AndroidBar />
+      <PushListener />
       <Routes>
         <Route element={<Shell profile={profile} />}>
           <Route index element={<Home />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings profile={profile} reload={reload} />} />
-          {profile.role === "admin" && <Route path="/admin/*" element={<Admin />} />}
+          {profile.role === "admin" && <Route path="/admin/*" element={<Admin userId={profile.id} />} />}
           <Route path="/login/*" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
