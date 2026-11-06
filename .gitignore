@@ -39,3 +39,6 @@ android/capacitor-cordova-android-plugins/build/
 
 # filled GitHub-secrets file (scripts/github-secrets.sh)
 scripts/github-secrets.env
+
+# Netlify CLI link state
+.netlify/
