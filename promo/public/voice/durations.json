@@ -1,0 +1,15 @@
+{
+  "voice": "am_michael",
+  "speed": 1.0,
+  "seconds": {
+    "logo": 1.07,
+    "hook": 3.048,
+    "signal": 10.637,
+    "call": 5.869,
+    "followups": 6.574,
+    "results": 5.149,
+    "wann": 6.403,
+    "phones": 4.846,
+    "outro": 1.328
+  }
+}
