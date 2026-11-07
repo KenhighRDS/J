@@ -38,13 +38,13 @@ const CUT = [FADE, SLIDE, FADE, SLIDE, FADE, SLIDE, FADE, FADE];                
 
 const Sfx: React.FC<{ at: number; file: string; volume?: number }> = ({ at, file, volume = 0.6 }) => <Sequence from={Math.max(0, at - 3)}><Audio src={staticFile(`sfx/${file}`)} volume={volume} /></Sequence>;
 
-const Promo: React.FC<{ scenes: number[]; voice: boolean }> = ({ scenes, voice }) => {
+const Promo: React.FC<{ scenes: number[]; voice: boolean; music: boolean }> = ({ scenes, voice, music }) => {
   const starts = scenes.map((_, i) => sum(scenes.slice(0, i)));
   const dur = (i: number) => scenes[i] + (i < scenes.length - 1 ? T : 0);    // each scene carries its outgoing transition
   const g = voice ? 0.8 : 1;                                                    // SFX sit a touch lower under narration
   return (
     <AbsoluteFill style={{ background: "#000", fontFamily: FONT }}>
-      <Music level={voice ? 0.26 : 0.5} total={sum(scenes)} />
+      {music && <Music level={voice ? 0.26 : 0.5} total={sum(scenes)} />}
       {voice && VOICE.map((v, i) => <Sequence key={v} from={starts[i] + LEAD[i]}><Audio src={staticFile(`voice/${v}.wav`)} volume={1} /></Sequence>)}
       <TransitionSeries>
         {SCENE.flatMap((S, i) => [
@@ -71,5 +71,7 @@ const Promo: React.FC<{ scenes: number[]; voice: boolean }> = ({ scenes, voice }
   );
 };
 
-export const JPromo: React.FC = () => <Promo scenes={SCENES} voice={false} />;
-export const JPromoVoice: React.FC = () => <Promo scenes={SCENES_VOICE} voice={true} />;
+export const JPromo: React.FC = () => <Promo scenes={SCENES} voice={false} music={true} />;
+export const JPromoVoice: React.FC = () => <Promo scenes={SCENES_VOICE} voice={true} music={true} />;
+export const JPromoSfx: React.FC = () => <Promo scenes={SCENES} voice={false} music={false} />;              // no bed: sound effects only, add your own track
+export const JPromoVoiceSfx: React.FC = () => <Promo scenes={SCENES_VOICE} voice={true} music={false} />;    // no bed: narration + sound effects
