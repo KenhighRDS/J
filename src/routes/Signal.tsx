@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import type { Profile, Receipt, Signal, SignalEvent } from "../lib/types";
 import { SignalCard } from "../components/SignalCard";
 import { QuestionSheet } from "../components/QuestionSheet";
+import { useAskPrompt } from "../lib/useAskPrompt";
 import { BalanceSheet } from "./Settings";
 import { Spinner, Empty, Button } from "../components/ui";
 import { useRealtime } from "../hooks/useRealtime";
@@ -20,7 +21,6 @@ export function SignalRoute({ profile, reloadProfile }: { profile: Profile; relo
   const [events, setEvents] = useState<SignalEvent[]>([]);
   const [missing, setMissing] = useState(false);
   const [balanceOpen, setBalanceOpen] = useState(false);
-  const [askOpen, setAskOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -47,11 +47,7 @@ export function SignalRoute({ profile, reloadProfile }: { profile: Profile; relo
   }, [id, load]);
   useRealtime([{ table: "signals", filter: `id=eq.${id}` }, { table: "receipts", filter: `signal_id=eq.${id}` }, { table: "signal_events", filter: `signal_id=eq.${id}` }], () => { void load(); }, [id]);
 
-  useEffect(() => {
-    if (!receipt) return;
-    const pending = receipt.question_sent_at && !receipt.answered_at && (receipt.status === "likely_taken" || receipt.status === "opened");
-    if (params.get("ask") === "1" || pending) setAskOpen(true);
-  }, [receipt, params]);
+  const ask = useAskPrompt(receipt, params, setParams);
 
   if (missing) return <div className="app-frame"><Empty title="This signal isn't available" body="It may have been sent before you joined, or to a different EA access." action={<Button type="button" onClick={() => nav("/")}>Back to signals</Button>} /></div>;
   if (!signal || !receipt) return <div className="flex h-full items-center justify-center"><Spinner /></div>;
@@ -68,8 +64,7 @@ export function SignalRoute({ profile, reloadProfile }: { profile: Profile; relo
         adminActions={profile.role === "admin" ? <ShareIconButton onClick={() => setShareOpen(true)} /> : undefined} />
       {profile.role === "admin" && <PromoShare subject={{ kind: "signal", signal }} open={shareOpen} onClose={() => setShareOpen(false)} />}
       <BalanceSheet open={balanceOpen} onClose={() => setBalanceOpen(false)} profile={profile} onSaved={reloadProfile} />
-      <QuestionSheet signal={signal} open={askOpen} onClose={() => { setAskOpen(false); if (params.get("ask")) setParams({}, { replace: true }); }}
-        onAnswer={(yes) => { void rpc("receipt_answer", { p_yes: yes }); setAskOpen(false); setParams({}, { replace: true }); }} />
+      <QuestionSheet signal={signal} open={ask.open} onClose={ask.settle} onAnswer={(yes) => { void rpc("receipt_answer", { p_yes: yes }); ask.settle(); }} />
     </>
   );
 }

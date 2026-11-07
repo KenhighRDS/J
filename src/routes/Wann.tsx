@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { useAskPrompt } from "../lib/useAskPrompt";
 import type { Profile, Receipt, WannCall } from "../lib/types";
 import { WannBadge, WannCard } from "../components/WannCard";
 import { WannGallery, type WannRow } from "../components/WannGallery";
@@ -30,7 +31,7 @@ export function WannRoute({ profile }: { profile: Profile }) {
   const [call, setCall] = useState<WannCall | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [missing, setMissing] = useState(false);
-  const [ask, setAsk] = useState(false);
+  const ask = useAskPrompt(receipt, params, setParams);
   const [shareOpen, setShareOpen] = useState(false);
   const load = useCallback(async () => {
     const [{ data: c }, { data: r }] = await Promise.all([supabase.from("wann_calls").select("*").eq("id", id).maybeSingle(), supabase.from("receipts").select("*").eq("wann_call_id", id).eq("user_id", profile.id).maybeSingle()]);
@@ -39,7 +40,6 @@ export function WannRoute({ profile }: { profile: Profile }) {
   }, [id, profile.id]);
   useEffect(() => { void (async () => { const { data } = await supabase.rpc("receipt_open", { p_call: id }); if (data) setReceipt(data as Receipt); if (hasNativeAlerts) void JAlert.stopRinging({}).catch(() => undefined); await load(); })(); }, [id, load]);
   useRealtime([{ table: "wann_calls", filter: `id=eq.${id}` }, { table: "receipts", filter: `wann_call_id=eq.${id}` }], () => { void load(); }, [id]);
-  useEffect(() => { if (receipt && (params.get("ask") === "1" || (receipt.question_sent_at && !receipt.answered_at && (receipt.status === "likely_taken" || receipt.status === "opened")))) setAsk(true); }, [receipt, params]);
   if (missing) return <Empty title="This call isn't available" action={<Button type="button" onClick={() => nav("/wann")}>Back</Button>} />;
   if (!call || !receipt) return <div className="flex h-full items-center justify-center"><Spinner /></div>;
   const rpc = async (fn: string, args: Record<string, unknown> = {}) => { const { data } = await supabase.rpc(fn, { p_call: id, ...args }); if (data) setReceipt(data as Receipt); };
@@ -47,9 +47,9 @@ export function WannRoute({ profile }: { profile: Profile }) {
     <>
       <WannCard call={call} receipt={receipt} onCopy={(f) => { setReceipt({ ...receipt, copied: { ...receipt.copied, [f]: "x" } }); void rpc("receipt_copy", { p_field: f }); }} onTake={() => { void rpc("receipt_take"); }} onSkip={() => { void rpc("receipt_skip"); }} onClose={() => nav("/wann")} adminActions={profile.role === "admin" ? <ShareIconButton onClick={() => setShareOpen(true)} /> : undefined} />
       {profile.role === "admin" && <PromoShare subject={{ kind: "wann", call }} open={shareOpen} onClose={() => setShareOpen(false)} />}
-      <Sheet open={ask} onClose={() => { setAsk(false); setParams({}, { replace: true }); }} title="Did you catch it?">
+      <Sheet open={ask.open} onClose={ask.settle} title="Did you catch it?">
         <p className="text-[15px] text-muted">{call.home} {call.final_score ?? ""} {call.away} — {call.outcome === "won" ? "won" : "lost"}. Did you take this call?</p>
-        <div className="mt-4 grid grid-cols-2 gap-3"><Button type="button" onClick={() => { void rpc("receipt_answer", { p_yes: true }); setAsk(false); }}>Yes, I took it</Button><Button variant="ghost" type="button" onClick={() => { void rpc("receipt_answer", { p_yes: false }); setAsk(false); }}>No</Button></div>
+        <div className="mt-4 grid grid-cols-2 gap-3"><Button type="button" onClick={() => { void rpc("receipt_answer", { p_yes: true }); ask.settle(); }}>Yes, I took it</Button><Button variant="ghost" type="button" onClick={() => { void rpc("receipt_answer", { p_yes: false }); ask.settle(); }}>No</Button></div>
       </Sheet>
     </>
   );
