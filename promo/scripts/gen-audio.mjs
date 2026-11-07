@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 const SR = 44100, OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "sfx");
 mkdirSync(OUT, { recursive: true });
 let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 - 0.5; };
-function wav(samples, name) {
+function wav(samples, name, drive = 0) {   // drive > 0: tanh soft limiter so sustained parts sit close to the transients (louder, denser mix)
+  if (drive > 0) { const k = Math.tanh(drive); for (let i = 0; i < samples.length; i++) samples[i] = Math.tanh(samples[i] * drive) / k; }
   let peak = 0; for (const s of samples) peak = Math.max(peak, Math.abs(s)); const g = peak > 0 ? 0.92 / peak : 1;
   const n = samples.length, buf = Buffer.alloc(44 + n * 2);
   buf.write("RIFF", 0); buf.writeUInt32LE(36 + n * 2, 4); buf.write("WAVE", 8); buf.write("fmt ", 12); buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20); buf.writeUInt16LE(1, 22);
@@ -37,7 +38,7 @@ for (let b = 0; b * BEAT < DUR; b++) {
 }
 for (const t of [10, 20, 27, 34, 42, 50]) add(bed, t - 1.2, 1.2, (ts, p) => rnd() * 2 * p * p * 0.25);   // risers into cuts
 for (const t of [4, 10, 20, 27, 34, 42, 50, 55]) add(bed, t, 0.8, (ts, p) => Math.sin(2 * Math.PI * (58 - 20 * Math.min(1, ts * 3)) * ts) * Math.exp(-p * 5) * 0.75);   // bass hits on cuts
-wav(bed, "bed.wav");
+wav(bed, "bed.wav", 3);
 
 // ---- SFX kit
 { const n = make(0.45); let lp = 0; for (let i = 0; i < n.length; i++) { const p = i / n.length; const env = Math.sin(Math.PI * Math.pow(p, 0.7)) ** 2; lp += (0.04 + 0.25 * Math.sin(Math.PI * p)) * (rnd() * 2 - lp); n[i] = lp * env; } wav(n, "whoosh.wav"); }

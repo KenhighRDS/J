@@ -26,7 +26,7 @@ const TRACK = getStaticFiles().find((f) => /^music\/.+\.(mp3|m4a|aac|wav|ogg)$/i
 const MUSIC_START = 0, MUSIC_VOLUME = 0.5, FPS = 30;
 const Music: React.FC = () => TRACK
   ? <Audio src={TRACK.src} trimBefore={Math.round(MUSIC_START * FPS)} volume={(f) => interpolate(f, [0, 24, TOTAL - 60, TOTAL - 2], [0, MUSIC_VOLUME, MUSIC_VOLUME, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })} />
-  : <Audio src={staticFile("sfx/bed.wav")} volume={0.26} />;
+  : <Audio src={staticFile("sfx/bed.wav")} volume={0.7} />;
 
 const Sfx: React.FC<{ at: number; file: string; volume?: number }> = ({ at, file, volume = 0.6 }) => <Sequence from={Math.max(0, at - 3)}><Audio src={staticFile(`sfx/${file}`)} volume={volume} /></Sequence>;
 
