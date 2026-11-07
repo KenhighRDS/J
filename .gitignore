@@ -42,3 +42,5 @@ scripts/github-secrets.env
 
 # Netlify CLI link state
 .netlify/
+# Netlify deploy upload bundle (temporary, created by the deploy command)
+deploy-*.zip
