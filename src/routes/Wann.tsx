@@ -1,39 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import type { Profile, Receipt, WannCall } from "../lib/types";
 import { WannBadge, WannCard } from "../components/WannCard";
+import { WannGallery, type WannRow } from "../components/WannGallery";
 import { Button, Empty, PageTitle, Sheet, Spinner } from "../components/ui";
-import { StatusChip } from "../components/StatusChip";
 import { useRealtime } from "../hooks/useRealtime";
-import { countdown } from "../lib/format";
 import { hasNativeAlerts, JAlert } from "../lib/native";
 import { PromoShare, ShareIconButton } from "../components/PromoShare";
 
-type Row = Receipt & { call: WannCall };
-
 export function WannList({ profile }: { profile: Profile }) {
-  const [rows, setRows] = useState<Row[] | null>(null);
+  const [rows, setRows] = useState<WannRow[] | null>(null);
   const [now, setNow] = useState(Date.now());
-  const load = useCallback(async () => { const { data } = await supabase.from("receipts").select("*, call:wann_calls(*)").eq("user_id", profile.id).eq("kind", "wann").order("created_at", { ascending: false }).limit(200); setRows(((data ?? []) as Row[]).filter((r) => r.call)); }, [profile.id]);
+  const load = useCallback(async () => { const { data } = await supabase.from("receipts").select("*, call:wann_calls(*)").eq("user_id", profile.id).eq("kind", "wann").order("created_at", { ascending: false }).limit(600); setRows(((data ?? []) as WannRow[]).filter((r) => r.call)); }, [profile.id]);
   useEffect(() => { void load(); }, [load]);
   useRealtime([{ table: "receipts", filter: `user_id=eq.${profile.id}` }, { table: "wann_calls" }], () => { void load(); }, [profile.id]);
   useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 30_000); return () => window.clearInterval(t); }, []);
-  if (!rows) return <div className="mx-auto w-full max-w-md"><PageTitle>Wann</PageTitle><div className="flex justify-center py-16"><Spinner /></div></div>;
-  const live = rows.filter((r) => r.call.status === "live" && new Date(r.call.kickoff_utc).getTime() > now).sort((a, b) => a.call.kickoff_utc.localeCompare(b.call.kickoff_utc));
-  const past = rows.filter((r) => !live.includes(r));
-  const item = (r: Row) => (
-    <li key={r.id}><Link to={`/wann/${r.call.id}`} className="focus-ring flex items-center gap-3 px-4 py-3">
-      <div className="min-w-0 flex-1"><p className="truncate text-[15px]">{r.call.home} <span className="text-muted">vs</span> {r.call.away}</p><p className="truncate text-[13px] text-muted">{r.call.pick_label} · {r.call.probability}% · {r.call.status === "live" ? `in ${countdown(new Date(r.call.kickoff_utc).getTime() - now)}` : r.call.status === "finished" ? `${r.call.final_score ?? ""} ${r.call.outcome === "won" ? "Won ✓" : r.call.outcome === "lost" ? "Lost" : "Void"}` : "Withdrawn"}</p></div>
-      <StatusChip status={r.status} />
-    </Link></li>
-  );
   return (
-    <div className="mx-auto w-full max-w-md pb-6">
+    <div className="mx-auto w-full max-w-2xl pb-6">
       <PageTitle right={<WannBadge />}>Wann</PageTitle>
-      {rows.length === 0 && <Empty title="No Wann calls yet" body="Games at or above the minimum probability for the coming week show up here." />}
-      {live.length > 0 && <ul className="mx-4 divide-y divide-border rounded-[16px] border border-chrome-3/50 bg-surface-2">{live.map(item)}</ul>}
-      {past.length > 0 && <ul className={`mx-4 divide-y divide-border rounded-[16px] border border-border bg-surface ${live.length ? "mt-4" : ""}`}>{past.map(item)}</ul>}
+      {!rows ? <div className="flex justify-center py-16"><Spinner /></div> : <WannGallery rows={rows} now={now} />}
     </div>
   );
 }

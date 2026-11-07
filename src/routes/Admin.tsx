@@ -7,6 +7,7 @@ import { Users } from "./admin/Users";
 import { AdminSignals } from "./admin/Signals";
 import { AdminSettings } from "./admin/AdminSettings";
 import { AdminReports } from "./admin/AdminReports";
+import { Backtest } from "./admin/Backtest";
 import type { Profile } from "../lib/types";
 
 export function Admin({ me }: { me: Profile }) {
@@ -20,6 +21,7 @@ export function Admin({ me }: { me: Profile }) {
         <Route path="push" element={<PushTest userId={me.id} />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="reports" element={<AdminReports />} />
+        <Route path="backtest" element={<Backtest />} />
       </Route>
     </Routes>
   );

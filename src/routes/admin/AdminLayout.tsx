@@ -9,6 +9,7 @@ const tabs = [
   { to: "/admin/push", label: "Push test" },
   { to: "/admin/settings", label: "Settings" },
   { to: "/admin/reports", label: "Reports" },
+  { to: "/admin/backtest", label: "Backtest" },
 ];
 
 export function AdminLayout() {

@@ -1,5 +1,6 @@
 import { ShareCard, chromeText, type ShareFormat } from "./ShareCard";
 import type { Signal, WannCall } from "../lib/types";
+import type { BacktestSummary } from "../lib/backtest";
 import { headline, pips, price, timeShort } from "../lib/format";
 
 const blur = (on: boolean): React.CSSProperties => (on ? { filter: "blur(16px)", opacity: 0.8 } : {});
@@ -63,6 +64,39 @@ export function PromoWins({ cardRef, signals, format }: { cardRef: React.RefObje
           </div>
         ))}
       </div>
+    </ShareCard>
+  );
+}
+
+const whenLong = (s: string | null) => { if (!s) return "—"; const d = new Date(s.replace(" ", "T")); return Number.isNaN(d.getTime()) ? s : `${d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}, ${s.slice(11, 16)}`; };
+const tile: React.CSSProperties = { background: "rgba(20,20,22,0.85)", border: "1px solid #232326", borderRadius: 24, padding: "26px 28px", minWidth: 0 };
+const mono = "'JetBrains Mono Variable', ui-monospace, monospace";
+const bigPips = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 1 })}`;
+
+/** Backtest result in the house style: the pips are the hero, the tester period and the honesty line are always there. */
+export function PromoBacktest({ cardRef, result: r, title, showMoney, format, inline }: { cardRef?: React.RefObject<HTMLDivElement | null>; result: BacktestSummary; title: string; showMoney: boolean; format: ShareFormat; inline?: boolean }) {
+  const story = format === "story";
+  const money = r.netProfit != null && showMoney ? `${r.netProfit >= 0 ? "+" : ""}${r.netProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${r.currency ?? ""}`.trim() : null;
+  const stats: [string, string][] = [["Buys", String(r.buys)], ["Sells", String(r.sells)], ["Win rate", `${r.winRate}%`]];
+  if (r.profitFactor != null) stats.push(["Profit factor", r.profitFactor.toFixed(2)]);
+  if (r.maxDrawdownPct != null) stats.push(["Max drawdown", `${r.maxDrawdownPct}%`]);
+  if (story && stats.length > 3) stats.push(["Trades", String(r.trades)]);   // a full second row of tiles on the tall format
+  return (
+    <ShareCard ref={cardRef} format={format} footer="J signals" inline={inline}>
+      <div style={{ fontSize: 34, color: "#8E8E93" }}>{title}{r.timeframe ? ` ${r.timeframe}` : ""} backtest</div>
+      <div style={{ marginTop: story ? 150 : 70, fontSize: 190, fontWeight: 700, lineHeight: 1, letterSpacing: -6, ...chromeText }}>{bigPips(r.totalPips)}</div>
+      <div style={{ fontSize: 44, color: "#BFC3C9", marginTop: 10 }}>pips over {r.trades} trades{money ? ` · ${money}` : ""}</div>
+      <div style={{ marginTop: story ? 90 : 64, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 }}>
+        {stats.slice(0, story ? 6 : 3).map(([l, v]) => (
+          <div key={l} style={tile}><div style={{ fontSize: 26, color: "#8E8E93" }}>{l}</div><div style={{ fontSize: 56, marginTop: 6, fontFamily: mono, ...chromeText }}>{v}</div></div>
+        ))}
+      </div>
+      {!story && stats.length > 3 && <div style={{ marginTop: 24, display: "flex", gap: 40, fontSize: 34, color: "#BFC3C9" }}>{stats.slice(3).map(([l, v]) => <span key={l}>{l} <span style={{ fontFamily: mono, color: "#F5F5F7" }}>{v}</span></span>)}</div>}
+      <div style={{ marginTop: story ? 110 : 70, display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 36, rowGap: 14, fontSize: 36, alignItems: "baseline" }}>
+        <span style={{ color: "#8E8E93", fontSize: 30 }}>First trade</span><span style={{ fontFamily: mono }}>{whenLong(r.firstTrade)}</span>
+        <span style={{ color: "#8E8E93", fontSize: 30 }}>Last trade</span><span style={{ fontFamily: mono }}>{whenLong(r.lastTrade)}</span>
+      </div>
+      <div style={{ marginTop: "auto", paddingTop: 40, fontSize: 28, color: "#6E7279" }}>Strategy Tester result on {r.symbol ?? "the symbol"}, not live trading. Past performance is not a promise.</div>
     </ShareCard>
   );
 }

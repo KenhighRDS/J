@@ -5,10 +5,11 @@ export type ShareFormat = "post" | "story";
 export const shareSize: Record<ShareFormat, { w: number; h: number }> = { post: { w: 1080, h: 1350 }, story: { w: 1080, h: 1920 } };
 
 /** Offscreen branded canvas (black, faded logo, chrome numbers). Rendered with html-to-image at exact pixel size. */
-export const ShareCard = forwardRef<HTMLDivElement, { format: ShareFormat; logo?: string; footer?: string; children: ReactNode }>(function ShareCard({ format, logo = "/icons/icon-512.png", footer = "J signals", children }, ref) {
+export const ShareCard = forwardRef<HTMLDivElement, { format: ShareFormat; logo?: string; footer?: string; inline?: boolean; children: ReactNode }>(function ShareCard({ format, logo = "/icons/icon-512.png", footer = "J signals", inline = false, children }, ref) {
   const { w, h } = shareSize[format];
+  const place: React.CSSProperties = inline ? { position: "relative" } : { position: "fixed", left: -20000, top: 0 };
   return (
-    <div ref={ref} aria-hidden style={{ width: w, height: h, position: "fixed", left: -20000, top: 0, background: "#000", color: "#F5F5F7", fontFamily: "'Inter Variable', Inter, system-ui, sans-serif", overflow: "hidden" }}>
+    <div ref={ref} aria-hidden={!inline} style={{ width: w, height: h, ...place, background: "#000", color: "#F5F5F7", fontFamily: "'Inter Variable', Inter, system-ui, sans-serif", overflow: "hidden" }}>
       <img src={logo} alt="" style={{ position: "absolute", width: w * 0.9, height: w * 0.9, left: w * 0.05, top: (h - w * 0.9) / 2, opacity: 0.12, objectFit: "contain" }} />
       <div style={{ position: "absolute", inset: 0, padding: 88, display: "flex", flexDirection: "column" }}>
         {children}
