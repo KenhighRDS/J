@@ -8,7 +8,7 @@ const numeric: { key: string; label: string; hint: string }[] = [
   { key: "re_ring_sec", label: "iPhone re-ring interval (seconds)", hint: "Default 30" },
   { key: "report_hour_ny", label: "Report hour (New York, 0–23)", hint: "Default 17" },
   { key: "wann_window_days", label: "Wann window (days)", hint: "Default 7" },
-  { key: "wann_min_probability", label: "Wann minimum probability (%)", hint: "Default 85. Set 90 to send only 90%+ calls; held calls that drop below it are withdrawn at the next sync" },
+  { key: "wann_min_probability", label: "Wann minimum probability (%)", hint: "Default 85. Set 90 to send only new calls at 90%+; calls already sent keep following wann's own rule" },
   { key: "close_question_hours", label: "Close question timeout (hours)", hint: "Default 48" },
 ];
 
