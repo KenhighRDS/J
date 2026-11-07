@@ -9,7 +9,7 @@ import { FONT, MONO } from "../fonts";
 const PW = 600;                                   // phone screen width
 const ROWS = [{ y: 0.479, at: 70 }, { y: 0.533, at: 92 }, { y: 0.588, at: 114 }];   // entry, SL, TP (fractions of the real screenshot)
 const LOT = { y: 0.642, at: 160 };
-const CAPTIONS = [{ text: "One card. Nothing to scroll.", at: 24, until: 68 }, { text: "Entry, SL and TP. Tap to copy.", at: 70, until: 158 }, { text: "Lot size from your balance and risk.", at: 160, until: 218 }, { text: "Swipe to take it. J keeps score.", at: 220, until: 400 }];
+const CAPTIONS = [{ text: "One card. Nothing to scroll.", at: 24, until: 56 }, { text: "Entry, SL and TP. Tap to copy.", at: 70, until: 146 }, { text: "Lot size from your balance and risk.", at: 160, until: 206 }, { text: "Swipe to take it. J keeps score.", at: 220, until: 400 }];   // each exit ends before the next entrance
 
 /** The real signal card, with copy highlights walking down the rows, then the swipe-to-take gesture. */
 export const SignalDemo: React.FC = () => {

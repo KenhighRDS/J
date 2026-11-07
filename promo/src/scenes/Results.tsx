@@ -9,7 +9,7 @@ import { FONT, MONO } from "../fonts";
 /** Payoff: the pips count up, the closed card shows Taken, then the share card slides in. */
 export const Results: React.FC = () => {
   const frame = useCurrentFrame(); const { fps } = useVideoConfig();
-  const count = interpolate(spring({ frame: frame - 24, fps, config: { damping: 30, stiffness: 50, mass: 1 } }), [0, 1], [0, 135]);
+  const count = interpolate(spring({ frame: frame - 20, fps, config: { damping: 30, stiffness: 50, mass: 1 } }), [0, 1], [0, 135]);
   const phoneOut = interpolate(frame, [138, 154], [0, 1], { ...clamp, easing: theme.ease.in });
   const cardIn = spring({ frame: frame - 146, fps, config: theme.spring.heavy });
   const kb = interpolate(frame, [146, 252], [1, 1.06], { ...clamp, easing: theme.ease.inOut });
