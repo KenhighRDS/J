@@ -18,14 +18,29 @@ export async function pushState(): Promise<PushState> {
   return Notification.permission === "denied" ? "denied" : Notification.permission === "granted" ? "granted" : "default";
 }
 
+/** Registers the push worker and waits for it to activate. Never `navigator.serviceWorker.ready`: that promise only
+ *  resolves for a worker whose scope covers the page, and ours is scoped to /push/ on purpose, so it would wait forever. */
 async function registerWorker(): Promise<ServiceWorkerRegistration> {
   const reg = await navigator.serviceWorker.register(SW_URL, { scope: SW_SCOPE });
-  await navigator.serviceWorker.ready.catch(() => undefined);
+  const sw = reg.installing ?? reg.waiting ?? reg.active;
+  if (sw && sw.state !== "activated") {
+    await new Promise<void>((resolve) => {
+      const timer = window.setTimeout(resolve, 8000);
+      sw.addEventListener("statechange", () => { if (sw.state === "activated") { window.clearTimeout(timer); resolve(); } });
+    });
+  }
   return reg;
 }
 
+function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(`${what} timed out`)), ms);
+    p.then((v) => { window.clearTimeout(timer); resolve(v); }, (e) => { window.clearTimeout(timer); reject(e); });
+  });
+}
+
 async function tokenAndUpsert(reg: ServiceWorkerRegistration): Promise<string> {
-  const token = await getToken(getMessaging(firebaseApp()), { vapidKey, serviceWorkerRegistration: reg });
+  const token = await withTimeout(getToken(getMessaging(firebaseApp()), { vapidKey, serviceWorkerRegistration: reg }), 20000, "Getting a push token");
   if (!token) throw new Error("No push token");
   const { error } = await supabase.rpc("device_register", { p_platform: "web", p_token: token, p_app_version: appVersion, p_user_agent: navigator.userAgent });
   if (error) throw new Error(error.message);
@@ -35,11 +50,16 @@ async function tokenAndUpsert(reg: ServiceWorkerRegistration): Promise<string> {
 
 /** Must be called directly from a user gesture (Safari refuses the prompt otherwise). */
 export async function enablePush(): Promise<{ ok: boolean; state: PushState; error?: string }> {
-  const s = await pushState();
-  if (s !== "default" && s !== "granted") return { ok: false, state: s };
+  // Synchronous checks only before the prompt: Safari grants the prompt only while the tap's activation is still fresh.
+  if (isNative) return { ok: false, state: "unsupported" };
+  if (!firebaseConfigured) return { ok: false, state: "not_configured" };
+  if (isIOSDevice && !isStandalone()) return { ok: false, state: "ios_not_installed" };
+  if (!("Notification" in window) || !("serviceWorker" in navigator)) return { ok: false, state: "unsupported" };
+  if (Notification.permission === "denied") return { ok: false, state: "denied" };
   const perm = await Notification.requestPermission();
   if (perm !== "granted") return { ok: false, state: perm === "denied" ? "denied" : "default" };
-  try { await tokenAndUpsert(await registerWorker()); return { ok: true, state: "granted" }; }
+  if (!(await isSupported())) return { ok: false, state: "unsupported" };
+  try { await withTimeout(registerWorker(), 15000, "Starting the push worker").then(tokenAndUpsert); return { ok: true, state: "granted" }; }
   catch (e) { return { ok: false, state: "granted", error: e instanceof Error ? e.message : "Couldn't register this device" }; }
 }
 
