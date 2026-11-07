@@ -8,6 +8,7 @@ const numeric: { key: string; label: string; hint: string }[] = [
   { key: "re_ring_sec", label: "iPhone re-ring interval (seconds)", hint: "Default 30" },
   { key: "report_hour_ny", label: "Report hour (New York, 0–23)", hint: "Default 17" },
   { key: "wann_window_days", label: "Wann window (days)", hint: "Default 7" },
+  { key: "wann_min_probability", label: "Wann minimum probability (%)", hint: "Default 85. Set 90 to send only 90%+ calls; held calls that drop below it are withdrawn at the next sync" },
   { key: "close_question_hours", label: "Close question timeout (hours)", hint: "Default 48" },
 ];
 
@@ -24,7 +25,7 @@ export function AdminSettings() {
   const save = async (e: FormEvent) => {
     e.preventDefault(); setBusy("save"); setMsg(null);
     try {
-      for (const n of numeric) { const num = Number(vals[n.key]); if (!Number.isFinite(num)) throw new Error(`${n.label}: enter a number`); const { error } = await supabase.rpc("admin_set_setting", { p_key: n.key, p_value: num }); if (error) throw new Error(error.message); }
+      for (const n of numeric) { const num = Number(vals[n.key]); if (!Number.isFinite(num)) throw new Error(`${n.label}: enter a number`); if (n.key === "wann_min_probability" && (num < 50 || num > 99)) throw new Error(`${n.label}: enter 50 to 99`); const { error } = await supabase.rpc("admin_set_setting", { p_key: n.key, p_value: num }); if (error) throw new Error(error.message); }
       for (const [k, raw] of [["match_tolerance_pips", tol], ["pip_size_overrides", pipo]] as const) { let parsed: unknown; try { parsed = JSON.parse(raw); } catch { throw new Error(`${k}: invalid JSON`); } const { error } = await supabase.rpc("admin_set_setting", { p_key: k, p_value: parsed }); if (error) throw new Error(error.message); }
       setMsg({ ok: true, text: "Saved" });
     } catch (err) { setMsg({ ok: false, text: err instanceof Error ? err.message : "Failed" }); }
@@ -42,7 +43,7 @@ export function AdminSettings() {
       </Card>
       {msg && <Notice tone={msg.ok ? "ok" : "warn"}>{msg.text}</Notice>}
       <Button type="submit" full busy={busy === "save"}>Save settings</Button>
-      <Card className="p-4"><p className="text-[15px]">Wann</p><p className="text-[13px] text-muted mb-3">Pulls the next 85%+ games from wann now (runs every 15 minutes anyway).</p><Button variant="ghost" full type="button" busy={busy === "sync"} onClick={sync}>Sync now</Button></Card>
+      <Card className="p-4"><p className="text-[15px]">Wann</p><p className="text-[13px] text-muted mb-3">Pulls the coming games at or above the minimum probability from wann now (runs every 15 minutes anyway).</p><Button variant="ghost" full type="button" busy={busy === "sync"} onClick={sync}>Sync now</Button></Card>
     </form>
   );
 }

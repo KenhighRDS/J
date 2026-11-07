@@ -118,7 +118,7 @@ export async function runRerings(sb: SupabaseClient): Promise<{ sent: number; cl
 interface WannCall { id: string; sport: string; competition: string; home: string; away: string; kickoff_utc: string; pick: string; pick_label: string; probability: number; status: string }
 export function wannTitle(c: WannCall): string { return `Wann · ${c.home} vs ${c.away}`; }
 
-/** New Wann calls: one alert for a batch ("Wann · 6 new games 85%+" → list) or the single card. */
+/** New Wann calls: one alert for a batch ("Wann · 6 new games 90%+" → list) or the single card. */
 export async function dispatchWannBatch(sb: SupabaseClient, callIds: string[], onlyUser: string | null): Promise<{ sent: number }> {
   if (!callIds.length) return { sent: 0 };
   const { data: calls } = await sb.from("wann_calls").select("id,sport,competition,home,away,kickoff_utc,pick,pick_label,probability,status").in("id", callIds);
@@ -131,12 +131,14 @@ export async function dispatchWannBatch(sb: SupabaseClient, callIds: string[], o
   for (const r of (receipts ?? []) as { id: string; user_id: string; wann_call_id: string }[]) byUser.set(r.user_id, [...(byUser.get(r.user_id) ?? []), r]);
   const devices = await devicesFor(sb, [...byUser.keys()]);
   const { data: every } = await sb.rpc("setting_num", { p_key: "re_ring_sec", p_default: 30 });
+  const { data: minSetting } = await sb.rpc("setting_num", { p_key: "wann_min_probability", p_default: 85 });
+  const minProb = Number(minSetting) || 85;
   let sent = 0;
   for (const [userId, rs] of byUser) {
     const single = rs.length === 1 ? cs.find((c) => c.id === rs[0].wann_call_id) ?? null : null;
     const first = cs.find((c) => c.id === rs[0].wann_call_id)!;
     const kickoff = new Date(single?.kickoff_utc ?? first.kickoff_utc);
-    const title = single ? wannTitle(single) : `Wann · ${rs.length} new games 85%+`;
+    const title = single ? wannTitle(single) : `Wann · ${rs.length} new games ${minProb}%+`;
     const body = single ? `${single.pick_label} · ${single.probability}% — tap to open` : `Tap to see the calls for the next 7 days`;
     const route = single ? `/wann/${single.id}` : "/wann";
     const ring = Math.max(60, Math.min(600, Math.round((kickoff.getTime() - Date.now()) / 1000)));

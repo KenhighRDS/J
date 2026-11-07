@@ -31,7 +31,7 @@ export function WannList({ profile }: { profile: Profile }) {
   return (
     <div className="mx-auto w-full max-w-md pb-6">
       <PageTitle right={<WannBadge />}>Wann</PageTitle>
-      {rows.length === 0 && <Empty title="No Wann calls yet" body="Games at 85% or more for the coming week show up here." />}
+      {rows.length === 0 && <Empty title="No Wann calls yet" body="Games at or above the minimum probability for the coming week show up here." />}
       {live.length > 0 && <ul className="mx-4 divide-y divide-border rounded-[16px] border border-chrome-3/50 bg-surface-2">{live.map(item)}</ul>}
       {past.length > 0 && <ul className={`mx-4 divide-y divide-border rounded-[16px] border border-border bg-surface ${live.length ? "mt-4" : ""}`}>{past.map(item)}</ul>}
     </div>

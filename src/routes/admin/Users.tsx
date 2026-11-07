@@ -91,7 +91,7 @@ export function Users({ me }: { me: Profile }) {
                 {isOpen && (
                   <div className="border-t border-border px-4 py-3 space-y-3">
                     {sources.length > 0 && <div><p className="mb-1.5 text-[13px] text-muted">EA access</p>{sources.map((s) => { const blocked = u.blocks.some((b) => b.ea_source_id === s.id); return <div key={s.id} className="flex items-center justify-between py-1.5"><span className="text-[15px]">{s.name}</span><Toggle on={!blocked} onChange={(v) => setBlock(u, s, !v)} label={`${s.name} for ${u.email}`} /></div>; })}</div>}
-                    <div className="flex items-center justify-between py-1.5"><div><p className="text-[15px]">Wann signals</p><p className="text-[13px] text-muted">Every 85%+ game of the coming week</p></div><Toggle on={Boolean(u.wann?.enabled)} onChange={(v) => setWann(u, v)} label={`Wann for ${u.email}`} /></div>
+                    <div className="flex items-center justify-between py-1.5"><div><p className="text-[15px]">Wann signals</p><p className="text-[13px] text-muted">Every game at or above the Wann minimum probability for the coming week</p></div><Toggle on={Boolean(u.wann?.enabled)} onChange={(v) => setWann(u, v)} label={`Wann for ${u.email}`} /></div>
                     <p className="text-[13px] text-muted">History: {u.stats.taken} taken · {u.stats.missed} missed · {u.stats.skipped} skipped</p>
                     {u.id !== me.id && <Button variant="danger" type="button" full busy={busy === `r${u.id}`} onClick={() => remove(u)}>Remove {u.name ?? u.email}</Button>}
                   </div>

@@ -25,6 +25,8 @@ Deno.serve(handler(async (req) => {
   if (!feedKey) fail(500, "Missing secret J_FEED_KEY");
   const { data: windowSetting } = await sb.rpc("setting_num", { p_key: "wann_window_days", p_default: 7 });
   const windowDays = Number(windowSetting) || 7;
+  const { data: minSetting } = await sb.rpc("setting_num", { p_key: "wann_min_probability", p_default: 85 });
+  const minProb = Math.min(99, Math.max(50, Number(minSetting) || 85));   // admin setting: only calls at or above this
 
   if (body.catchup_user) {
     const { data: live } = await sb.from("wann_calls").select("id").eq("status", "live").gte("kickoff_utc", new Date().toISOString());
@@ -43,6 +45,7 @@ Deno.serve(handler(async (req) => {
   // new calls
   const newIds: string[] = [];
   for (const c of feed.calls) {
+    if (c.probability < minProb) continue;
     const { data: existing } = await sb.from("wann_calls").select("id").eq("wann_game_id", c.game_id).maybeSingle();
     if (existing) continue;
     const { data: ins } = await sb.from("wann_calls").insert({ wann_game_id: c.game_id, sport: c.sport, competition: c.competition, home: c.home, away: c.away, kickoff_utc: c.kickoff_utc, pick: c.pick, pick_label: c.pick_label, probability: c.probability, call_type: c.call_type, model_version: c.model_version, prediction_time: c.prediction_time, status: "live", sent_at: new Date().toISOString() }).select("id").single();
@@ -72,10 +75,11 @@ Deno.serve(handler(async (req) => {
       await dispatchWannUpdate(sb, h.id, "withdrawn", `Wann update: ${h.home} vs ${h.away}`, `Game ${u.status} — call void.`);
       continue;
     }
-    if (new Date(u.kickoff_utc).getTime() > Date.now() && (!u.still_clears || (u.current && u.current.pick !== h.pick))) {
+    const clears = u.still_clears && u.current != null && u.current.probability >= minProb;
+    if (new Date(u.kickoff_utc).getTime() > Date.now() && (!clears || (u.current && u.current.pick !== h.pick))) {
       await sb.from("wann_calls").update({ status: "withdrawn", withdrawn_at: new Date().toISOString() }).eq("id", h.id);
       await sb.rpc("receipts_resolve", { p_signal: null, p_call: h.id });
-      const now = u.current ? `${u.current.pick_label} now ${u.current.probability}%` : `now below 85%`;
+      const now = u.current ? `${u.current.pick_label} now ${u.current.probability}%` : `now below ${minProb}%`;
       await dispatchWannUpdate(sb, h.id, "withdrawn", `Wann update: ${h.home} vs ${h.away}`, `${now} — call withdrawn.`);
       withdrawn++;
       continue;
@@ -83,5 +87,5 @@ Deno.serve(handler(async (req) => {
     if (u.current && u.current.probability !== h.probability) await sb.from("wann_calls").update({ probability: u.current.probability, prediction_time: u.current.prediction_time, model_version: u.current.model_version }).eq("id", h.id);
     if (u.kickoff_utc) await sb.from("wann_calls").update({ kickoff_utc: u.kickoff_utc }).eq("id", h.id);
   }
-  return json({ new: newIds.length, pushed: sent.sent, withdrawn, finished, feed_calls: feed.calls.length });
+  return json({ new: newIds.length, pushed: sent.sent, withdrawn, finished, feed_calls: feed.calls.filter((c) => c.probability >= minProb).length, min_probability: minProb });
 }));
