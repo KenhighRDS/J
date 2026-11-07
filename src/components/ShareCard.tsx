@@ -1,4 +1,5 @@
 import { forwardRef, type ReactNode } from "react";
+import { isWebKit } from "../lib/platform";
 
 export type ShareFormat = "post" | "story";
 export const shareSize: Record<ShareFormat, { w: number; h: number }> = { post: { w: 1080, h: 1350 }, story: { w: 1080, h: 1920 } };
@@ -17,4 +18,7 @@ export const ShareCard = forwardRef<HTMLDivElement, { format: ShareFormat; logo?
   );
 });
 
-export const chromeText: React.CSSProperties = { background: "linear-gradient(180deg,#fff 0%,#BFC3C9 55%,#6E7279 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" };
+/** Chrome numbers. WebKit cannot paint background-clip:text inside the capture (the text would vanish), so it gets solid silver. */
+export const chromeText: React.CSSProperties = isWebKit
+  ? { color: "#D9DBDF" }
+  : { background: "linear-gradient(180deg,#fff 0%,#BFC3C9 55%,#6E7279 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" };

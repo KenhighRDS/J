@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Button, Sheet, Toggle } from "./ui";
 import type { ShareFormat } from "./ShareCard";
 import { PromoSignal, PromoWann, PromoWins } from "./PromoCard";
-import { renderPng, sharePng, downloadDataUrl } from "../lib/share";
+import { canDownloadDirectly, renderPng, sharePng, downloadDataUrl } from "../lib/share";
 import type { Signal, WannCall } from "../lib/types";
 
 type Subject = { kind: "signal"; signal: Signal } | { kind: "wann"; call: WannCall } | { kind: "wins"; signals: Signal[] };
@@ -13,11 +13,16 @@ export function PromoShare({ subject, open, onClose }: { subject: Subject; open:
   const [hide, setHide] = useState(live);
   const [format, setFormat] = useState<ShareFormat>("post");
   const [busy, setBusy] = useState<"share" | "download" | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const name = subject.kind === "signal" ? `J-${subject.signal.base_symbol}-${subject.signal.id.slice(0, 6)}` : subject.kind === "wann" ? `wann-${subject.call.home}-${subject.call.away}`.replace(/\s+/g, "-") : "J-recent-wins";
   const go = async (mode: "share" | "download") => {
-    if (!ref.current) return; setBusy(mode);
-    try { const png = await renderPng(ref.current); if (mode === "share") await sharePng(png, `${name}-${format}.png`, "J"); else downloadDataUrl(png, `${name}-${format}.png`); }
+    if (!ref.current) return; setBusy(mode); setMsg(null);
+    try {
+      const png = await renderPng(ref.current);
+      if (mode === "download" && canDownloadDirectly) downloadDataUrl(png, `${name}-${format}.png`);
+      else { const r = await sharePng(png, `${name}-${format}.png`, "J"); if (r === "shared" && !canDownloadDirectly) setMsg("To keep the file, pick Save to Photos, Files or Gallery in the share sheet."); }
+    } catch (e) { setMsg(e instanceof Error ? e.message : "Couldn't create the image"); }
     finally { setBusy(null); }
   };
   if (!open) return null;
@@ -30,7 +35,8 @@ export function PromoShare({ subject, open, onClose }: { subject: Subject; open:
         <div className="mt-2 flex rounded-[12px] bg-surface-2 p-1">
           {(["post", "story"] as ShareFormat[]).map((f) => <button key={f} type="button" onClick={() => setFormat(f)} className={`focus-ring flex-1 h-9 rounded-[9px] text-[14px] ${format === f ? "bg-text text-black" : "text-muted"}`}>{f === "post" ? "Post 1080×1350" : "Story 1080×1920"}</button>)}
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-3"><Button type="button" busy={busy === "share"} onClick={() => go("share")}>Share</Button><Button type="button" variant="ghost" busy={busy === "download"} onClick={() => go("download")}>Download</Button></div>
+        <div className={`mt-4 grid gap-3 ${canDownloadDirectly ? "grid-cols-2" : "grid-cols-1"}`}><Button type="button" busy={busy === "share"} onClick={() => go("share")}>{canDownloadDirectly ? "Share" : "Share or save"}</Button>{canDownloadDirectly && <Button type="button" variant="ghost" busy={busy === "download"} onClick={() => go("download")}>Download</Button>}</div>
+        {msg && <p className="mt-3 text-[13px] text-muted">{msg}</p>}
       </Sheet>
       {subject.kind === "signal" && <PromoSignal cardRef={ref} signal={subject.signal} format={format} hideLevels={hide} />}
       {subject.kind === "wann" && <PromoWann cardRef={ref} call={subject.call} format={format} hideLevels={hide} />}

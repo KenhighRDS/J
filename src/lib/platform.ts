@@ -4,6 +4,8 @@ export const isNative = Capacitor.isNativePlatform();
 export const isAndroidNative = isNative && Capacitor.getPlatform() === "android";
 export const isIOSDevice =
   /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+/** Safari / WebKit (iPhone, iPad, Mac Safari): no Chromium engine behind it. */
+export const isWebKit = /AppleWebKit/.test(navigator.userAgent) && !/Chrome|CriOS|Chromium|Android|Edg/.test(navigator.userAgent);
 export function isStandalone(): boolean {
   return window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
