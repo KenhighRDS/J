@@ -3,21 +3,27 @@ import { Link } from "react-router-dom";
 import { Button, Card, Notice } from "./ui";
 import type { Profile } from "../lib/types";
 import { isAndroidNative } from "../lib/platform";
-import { enablePush, pushState, type PushState } from "../lib/webPush";
+import { enablePush, getLastPushError, isThisDeviceRegistered, pushState, type PushState } from "../lib/webPush";
 import { callFunction, supabase } from "../lib/supabase";
 
 export function NotificationsCard({ profile }: { profile: Profile }) {
   const [state, setState] = useState<PushState | "native">(isAndroidNative ? "native" : "default");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [registered, setRegistered] = useState<boolean | null>(null);
   const [focusNoteSeen, setFocusNoteSeen] = useState(() => { try { return localStorage.getItem("j:focusNote") === "1"; } catch { return true; } });
-  useEffect(() => { if (!isAndroidNative) void pushState().then(setState); }, []);
+  useEffect(() => {
+    if (isAndroidNative) return;
+    void pushState().then(async (s) => { setState(s); if (s === "granted") { setRegistered(await isThisDeviceRegistered(profile.id)); const err = getLastPushError(); if (err) setMsg(err); } });
+  }, [profile.id]);
 
   const enable = async () => {
     setBusy(true); setMsg(null);
     const r = await enablePush();
     setState(r.state);
+    setRegistered(r.ok);
     if (!r.ok && r.error) setMsg(r.error);
+    if (r.ok) setMsg("This device is registered. Send yourself a test.");
     setBusy(false);
   };
   const sendTest = async () => {
@@ -53,7 +59,13 @@ export function NotificationsCard({ profile }: { profile: Profile }) {
           <Button className="mt-3" full busy={busy} onClick={enable} type="button">Enable notifications</Button>
         </>
       )}
-      {state === "granted" && (
+      {state === "granted" && registered === false && (
+        <>
+          <div className="mt-2"><Notice tone="warn">Notifications are allowed, but this device isn't registered with J yet.</Notice></div>
+          <Button className="mt-3" full busy={busy} onClick={enable} type="button">Register this device</Button>
+        </>
+      )}
+      {state === "granted" && registered !== false && (
         <>
           <p className="mt-1.5 text-[14px] text-buy">Signals will reach this {/iPhone|iPad/.test(navigator.userAgent) ? "iPhone" : "device"} even when J is closed.</p>
           <Button className="mt-3" variant="ghost" full busy={busy} onClick={sendTest} type="button">Send me a test</Button>

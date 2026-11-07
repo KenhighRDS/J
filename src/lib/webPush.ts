@@ -6,6 +6,17 @@ import { supabase } from "./supabase";
 import { appVersion, isIOSDevice, isNative, isStandalone } from "./platform";
 
 export type PushState = "unsupported" | "ios_not_installed" | "denied" | "default" | "granted" | "not_configured";
+let lastPushError: string | null = null;
+/** The last registration failure, including the one from the silent refresh on app start. */
+export function getLastPushError(): string | null { return lastPushError; }
+const describe = (e: unknown) => { const err = e as { code?: string; message?: string } | null; return err?.message ? `${err.code ? `${err.code}: ` : ""}${err.message}` : "Couldn't register this device"; };
+/** True when this browser's push token is one of the user's registered devices. */
+export async function isThisDeviceRegistered(userId: string): Promise<boolean> {
+  let token: string | null = null; try { token = localStorage.getItem("j:pushToken"); } catch { /* ignore */ }
+  if (!token) return false;
+  const { data } = await supabase.from("devices").select("id").eq("user_id", userId).eq("fcm_token", token).limit(1);
+  return (data ?? []).length > 0;
+}
 const SW_URL = "/firebase-messaging-sw.js";
 const SW_SCOPE = "/push/";
 
@@ -59,14 +70,14 @@ export async function enablePush(): Promise<{ ok: boolean; state: PushState; err
   const perm = await Notification.requestPermission();
   if (perm !== "granted") return { ok: false, state: perm === "denied" ? "denied" : "default" };
   if (!(await isSupported())) return { ok: false, state: "unsupported" };
-  try { await withTimeout(registerWorker(), 15000, "Starting the push worker").then(tokenAndUpsert); return { ok: true, state: "granted" }; }
-  catch (e) { return { ok: false, state: "granted", error: e instanceof Error ? e.message : "Couldn't register this device" }; }
+  try { await withTimeout(registerWorker(), 15000, "Starting the push worker").then(tokenAndUpsert); lastPushError = null; return { ok: true, state: "granted" }; }
+  catch (e) { lastPushError = describe(e); return { ok: false, state: "granted", error: lastPushError }; }
 }
 
 /** On every app start where permission is already granted: register again and refresh the token (tokens rotate). */
 export async function refreshPushIfGranted(): Promise<void> {
   if ((await pushState()) !== "granted") return;
-  try { await tokenAndUpsert(await registerWorker()); } catch (e) { console.warn("push refresh failed", e); }
+  try { await tokenAndUpsert(await withTimeout(registerWorker(), 15000, "Starting the push worker")); lastPushError = null; } catch (e) { lastPushError = describe(e); console.warn("push refresh failed", e); }
 }
 
 export async function disablePush(): Promise<void> {
