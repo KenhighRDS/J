@@ -6,7 +6,7 @@ import { chromeText, clamp } from "../components/Motion";
 import { FONT } from "../fonts";
 
 const LINES: { rows: string[][]; at: number }[] = [
-  { rows: [["Your", "EA", "calls", "it."]], at: 0 },
+  { rows: [["I", "call", "it."]], at: 0 },
   { rows: [["Your", "phone", "rings."]], at: 48 },
   { rows: [["You", "copy."], ["You", "trade."]], at: 96 },
 ];

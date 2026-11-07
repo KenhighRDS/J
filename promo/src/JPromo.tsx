@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, Audio, Sequence, staticFile } from "remotion";
+import { AbsoluteFill, Audio, Sequence, getStaticFiles, interpolate, staticFile } from "remotion";
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
@@ -21,11 +21,18 @@ const starts = SCENES.map((_, i) => SCENES.slice(0, i).reduce((a, b) => a + b, 0
 const dur = (i: number) => SCENES[i] + (i < SCENES.length - 1 ? T : 0);        // each scene carries its outgoing transition
 const FADE = fade(); const SLIDE = slide({ direction: "from-right" }); const timing = linearTiming({ durationInFrames: T });
 
+/** Drop a licensed song in public/music/ (gitignored) and it replaces the synthesized bed. MUSIC_START skips into the song (seconds). */
+const TRACK = getStaticFiles().find((f) => /^music\/.+\.(mp3|m4a|aac|wav|ogg)$/i.test(f.name));
+const MUSIC_START = 0, MUSIC_VOLUME = 0.5, FPS = 30;
+const Music: React.FC = () => TRACK
+  ? <Audio src={TRACK.src} trimBefore={Math.round(MUSIC_START * FPS)} volume={(f) => interpolate(f, [0, 24, TOTAL - 60, TOTAL - 2], [0, MUSIC_VOLUME, MUSIC_VOLUME, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })} />
+  : <Audio src={staticFile("sfx/bed.wav")} volume={0.26} />;
+
 const Sfx: React.FC<{ at: number; file: string; volume?: number }> = ({ at, file, volume = 0.6 }) => <Sequence from={Math.max(0, at - 3)}><Audio src={staticFile(`sfx/${file}`)} volume={volume} /></Sequence>;
 
 export const JPromo: React.FC = () => (
   <AbsoluteFill style={{ background: "#000", fontFamily: FONT }}>
-    <Audio src={staticFile("sfx/bed.wav")} volume={0.26} />
+    <Music />
     <TransitionSeries>
       <TransitionSeries.Sequence durationInFrames={dur(0)}><Logo /></TransitionSeries.Sequence>
       <TransitionSeries.Transition presentation={FADE} timing={timing} />

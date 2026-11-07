@@ -18,6 +18,7 @@ const waitFor = async (page, url) => { for (let n = 0; n < 80; n++) { try { awai
     for (const [name, p, ctxOpts] of shots) {
       const ctx = await b.newContext(ctxOpts); const page = await ctx.newPage();
       await page.goto('http://127.0.0.1:5174' + p, { waitUntil: 'networkidle', timeout: 60000 }); await page.waitForTimeout(1200);
+      await page.evaluate(() => { const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) if (n.nodeValue && n.nodeValue.includes('XAU EA')) n.nodeValue = n.nodeValue.replace('XAU EA', 'J'); });   // the sender is J, not a source label
       await page.screenshot({ path: `${OUT}/${name}.png` }); console.log('captured', name); await ctx.close();
     }
     const ctx = await b.newContext(phone); const page = await ctx.newPage();

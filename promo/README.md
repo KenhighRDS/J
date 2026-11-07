@@ -7,6 +7,7 @@ What it uses
 - The Android call screen recreated from `activity_signal_alert.xml`; iPhone push banners recreated.
 - The app's own fonts (`public/fonts`, from the app's fontsource packages) and palette (`src/theme.ts`).
 - An original synthesized music bed and sound-effect kit (`npm run audio` writes `public/sfx/*.wav`; nothing is downloaded, nothing licensed).
+- Optional licensed song: put one audio file in `public/music/` (gitignored, never committed) and it replaces the bed on the next render, with a fade in and out. `MUSIC_START` / `MUSIC_VOLUME` in `src/JPromo.tsx` set the offset and level.
 
 Commands (run inside `promo/`)
 ```bash

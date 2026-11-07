@@ -18,8 +18,8 @@ export const FollowUps: React.FC = () => {
     <AbsoluteFill>
       <BgMesh />
       <div style={{ position: "absolute", top: 230, left: 0, right: 0, textAlign: "center", padding: "0 80px" }}>
-        <Entrance delay={2}><Headline size={88} style={chromeText}>The EA keeps talking</Headline></Entrance>
-        <Entrance delay={12}><Body size={38} style={{ marginTop: 18 }}>Every change in the trade reaches your phone as a call.</Body></Entrance>
+        <Entrance delay={2}><Headline size={88} style={chromeText}>I stay on the trade</Headline></Entrance>
+        <Entrance delay={12}><Body size={38} style={{ marginTop: 18 }}>Every move I make reaches your phone as a call.</Body></Entrance>
       </div>
       <div style={{ position: "absolute", top: 720, left: 72, right: 72, display: "flex", flexDirection: "column", gap: 28 }}>
         {CARDS.map((c, i) => {
