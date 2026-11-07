@@ -17,7 +17,7 @@ export const Outro: React.FC = () => {
       <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
         <div style={{ position: "relative", opacity: p, transform: `scale(${interpolate(p, [0, 1], [0.6, 1]) * b.scale}) rotate(${interpolate(p, [0, 1], [10, 0])}deg) translateY(${b.y - 100}px)` }}>
           <div style={{ position: "absolute", inset: -120, borderRadius: "50%", background: "radial-gradient(circle, rgba(220,224,230,0.3) 0%, rgba(220,224,230,0.08) 38%, transparent 65%)", filter: "blur(30px)" }} />
-          <Img src={staticFile("logo.png")} style={{ width: 560, height: 560, display: "block", position: "relative", mixBlendMode: "screen" }} />
+          <Img src={staticFile("logo-alpha.png")} style={{ width: 560, height: 560, display: "block", position: "relative" }} />
         </div>
         <div style={{ position: "absolute", top: 1230, left: 0, right: 0, padding: "0 100px" }}>
           <WordReveal text="J. Invite only." delay={26} per={4} style={{ fontFamily: FONT, fontWeight: 600, fontSize: 64, letterSpacing: -1.5, color: theme.colors.chrome2, justifyContent: "center" }} />
