@@ -47,6 +47,7 @@ export function useProfile(session: Session | null): { profile: Profile | null; 
     const { data, error } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
     if (error) { if (error.code === "PGRST301" || /JWT/i.test(error.message)) accessEnded(); return; }
     if (!data || data.status === "removed") { accessEnded(); return; }
+    if (data.status === "invited") { const { data: accepted } = await supabase.rpc("profile_accept_invite"); setProfile((accepted ?? data) as Profile); void supabase.rpc("profile_touch"); return; }   // signed in with a code instead of the email button
     setProfile(data as Profile);
     void supabase.rpc("profile_touch");
   };

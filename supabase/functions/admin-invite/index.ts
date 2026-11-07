@@ -34,6 +34,8 @@ Deno.serve(handler(async (req) => {
   const userId = data.user?.id;
   if (userId) {
     await sb.from("profiles").upsert({ id: userId, email, name: body.name ?? null, status: "invited" }, { onConflict: "id" });
+    // The email button is optional: a code login proves the same inbox, and Supabase refuses codes for unconfirmed users while signups are off.
+    await sb.auth.admin.updateUserById(userId, { email_confirm: true });
   }
   await sb.from("invites").insert({ email, invited_by: admin.id });
   return json({ ok: true, user_id: userId });
