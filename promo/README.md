@@ -25,3 +25,11 @@ Remotion downloads its own Chrome Headless Shell on first render (`npx remotion 
 Structure: `src/Root.tsx` registers the `JPromo` composition; `src/JPromo.tsx` sequences the nine scenes with transitions and places the sound cues; `src/scenes/*` are the scenes; `src/components/*` the layer stack (mesh, grade, grain, vignette), motion primitives and the phone frame.
 
 The skills that guided it are in `.claude/skills/remotion-motion-graphics` and `.claude/skills/remotion-video`.
+
+## How-to video (`JHowTo`)
+
+51 s, 1080×1920, sound effects only (no music bed), for showing members how to take a signal: the call, MetaTrader 5 Quotes → symbol → Trade, copy each value in J and paste it into Volume, Stop Loss and Take Profit, Buy by Market, then swipe “I took it” in J. Two tips follow: pending orders (pick Buy Stop or Buy Limit, paste the entry as Price, Place) and the “Did you catch it?” question for anyone who forgot to swipe.
+
+- The J screens are real captures: `npm run shots:howto` drives the dev preview (copy taps, the swipe) and writes `public/ui/howto/*.png` plus `layout.json` with the row and knob positions the taps line up to.
+- The MetaTrader 5 screens are recreated in `src/howto/Mt5.tsx` (light theme, Roboto) following the standard MT5 mobile layout; labels can differ slightly by MT5 version or broker.
+- Render: `npm run render:howto` → `out/j-howto.mp4`.
