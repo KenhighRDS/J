@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Button, Card, Field, Notice, Toggle } from "../../components/ui";
-import { PromoBacktest } from "../../components/PromoCard";
+import { Button, Card, Field, Notice } from "../../components/ui";
+import { PromoBacktest, type BacktestShow } from "../../components/PromoCard";
 import { shareSize, type ShareFormat } from "../../components/ShareCard";
 import { decodeReportFile, parseBacktest, withPipSize, type BacktestSummary } from "../../lib/backtest";
 import { canDownloadDirectly, downloadDataUrl, renderPng, sharePng } from "../../lib/share";
@@ -16,7 +16,7 @@ export function Backtest({ initial }: { initial?: BacktestSummary }) {
   const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState(initial?.symbol ?? "");
   const [pip, setPip] = useState(initial ? String(initial.pipSize) : "");
-  const [showMoney, setShowMoney] = useState(false);
+  const [show, setShow] = useState<BacktestShow>("pips");
   const [format, setFormat] = useState<ShareFormat>("post");
   const [busy, setBusy] = useState<"share" | "download" | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -73,18 +73,25 @@ export function Backtest({ initial }: { initial?: BacktestSummary }) {
               {stat("Buys", String(result.buys))}{stat("Sells", String(result.sells))}{result.profitFactor != null ? stat("Profit factor", result.profitFactor.toFixed(2)) : stat("Wins / losses", `${result.wins} / ${result.losses}`)}
               {stat("First trade", when(result.firstTrade))}{stat("Last trade", when(result.lastTrade))}{result.netProfit != null ? stat("Net result", `${result.netProfit.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${result.currency ?? ""}`) : null}
             </div>
+            {result.tradesList.some((t) => t.volume !== result.baseLot) && <p className="mt-2 text-[13px] text-muted">Lots vary in this report, so pips are counted per {result.baseLot} lot (a trade at {result.baseLot * 2} lot counts double). That keeps pips and the money result on the same side.</p>}
           </Card>
           <Card className="p-4 space-y-3">
             <Field label="Title on the card" value={title} onChange={(e) => setTitle(e.target.value)} hint="Symbol by default; use the EA or strategy name if you prefer" />
             <Field label="Pip size" type="number" inputMode="decimal" step="any" value={pip} onChange={(e) => setPip(e.target.value)} error={pip !== "" && !(pipNum > 0) ? "Enter a number above 0" : undefined} hint={`Guessed from the symbol and ${result.digits}-digit prices. Change it if the pips look wrong.`} />
-            <div className="flex items-center justify-between py-1"><div><p className="text-[15px]">Show the money result</p><p className="text-[13px] text-muted">Adds the net profit in {result.currency ?? "account currency"} next to the pips</p></div><Toggle on={showMoney} onChange={setShowMoney} label="Show the money result" /></div>
+            <div>
+              <p className="text-[15px]">Headline figure</p>
+              <div className="mt-2 flex rounded-[12px] bg-surface-2 p-1">
+                {(["pips", "cash", "both"] as BacktestShow[]).map((m) => <button key={m} type="button" disabled={m !== "pips" && result.netProfit == null} onClick={() => setShow(m)} className={`focus-ring flex-1 h-9 rounded-[9px] text-[14px] disabled:opacity-40 ${show === m ? "bg-text text-black" : "text-muted"}`}>{m === "pips" ? "Pips" : m === "cash" ? `Cash${result.currency ? ` (${result.currency})` : ""}` : "Both"}</button>)}
+              </div>
+              <p className="mt-1.5 text-[13px] text-muted">{show === "cash" ? "The net result is the hero; pips stay off the card." : show === "both" ? "Pips are the hero, with the net result beside them." : "Pips only."}</p>
+            </div>
             <div className="flex rounded-[12px] bg-surface-2 p-1">
               {(["post", "story"] as ShareFormat[]).map((f) => <button key={f} type="button" onClick={() => setFormat(f)} className={`focus-ring flex-1 h-9 rounded-[9px] text-[14px] ${format === f ? "bg-text text-black" : "text-muted"}`}>{f === "post" ? "Post 1080×1350" : "Story 1080×1920"}</button>)}
             </div>
           </Card>
           <div ref={previewBox} className="mx-auto w-full max-w-[420px] overflow-hidden rounded-[16px] border border-border" style={{ aspectRatio: `${w} / ${h}` }}>
             <div style={{ width: w, height: h, transform: `scale(${scale})`, transformOrigin: "top left" }}>
-              <PromoBacktest result={result} title={title || result.symbol || "Backtest"} showMoney={showMoney} format={format} inline />
+              <PromoBacktest result={result} title={title || result.symbol || "Backtest"} show={show} format={format} inline />
             </div>
           </div>
           <div className={`grid gap-3 ${canDownloadDirectly ? "grid-cols-2" : "grid-cols-1"}`}>
@@ -92,7 +99,7 @@ export function Backtest({ initial }: { initial?: BacktestSummary }) {
             {canDownloadDirectly && <Button type="button" variant="ghost" busy={busy === "download"} onClick={() => go("download")}>Download</Button>}
           </div>
           {msg && <p className="text-[13px] text-muted">{msg}</p>}
-          <PromoBacktest cardRef={card} result={result} title={title || result.symbol || "Backtest"} showMoney={showMoney} format={format} />
+          <PromoBacktest cardRef={card} result={result} title={title || result.symbol || "Backtest"} show={show} format={format} />
         </>
       )}
     </div>

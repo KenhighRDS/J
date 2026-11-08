@@ -73,10 +73,17 @@ const tile: React.CSSProperties = { background: "rgba(20,20,22,0.85)", border: "
 const mono = "'JetBrains Mono Variable', ui-monospace, monospace";
 const bigPips = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 1 })}`;
 
-/** Backtest result in the house style: the pips are the hero, the tester period and the honesty line are always there. */
-export function PromoBacktest({ cardRef, result: r, title, showMoney, format, inline }: { cardRef?: React.RefObject<HTMLDivElement | null>; result: BacktestSummary; title: string; showMoney: boolean; format: ShareFormat; inline?: boolean }) {
+export type BacktestShow = "pips" | "cash" | "both";
+const bigMoney = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+
+/** Backtest result in the house style: the hero is the pips, the cash result, or pips with the cash beside it; then the tiles and the first/last trade. */
+export function PromoBacktest({ cardRef, result: r, title, show, format, inline }: { cardRef?: React.RefObject<HTMLDivElement | null>; result: BacktestSummary; title: string; show: BacktestShow; format: ShareFormat; inline?: boolean }) {
   const story = format === "story";
-  const money = r.netProfit != null && showMoney ? `${r.netProfit >= 0 ? "+" : ""}${r.netProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${r.currency ?? ""}`.trim() : null;
+  const money = r.netProfit != null ? bigMoney(r.netProfit) : null;
+  const cash = show === "cash" && money != null;
+  const hero = cash ? money : bigPips(r.totalPips);
+  const heroSize = hero.length <= 7 ? 190 : hero.length <= 9 ? 150 : 120;        // long figures shrink instead of wrapping
+  const sub = cash ? `${r.currency ? `${r.currency} ` : ""}net over ${r.trades} trades` : `pips over ${r.trades} trades${show === "both" && money ? ` · ${money}${r.currency ? ` ${r.currency}` : ""}` : ""}`;
   const stats: [string, string][] = [["Buys", String(r.buys)], ["Sells", String(r.sells)], ["Win rate", `${r.winRate}%`]];
   if (r.profitFactor != null) stats.push(["Profit factor", r.profitFactor.toFixed(2)]);
   if (r.maxDrawdownPct != null) stats.push(["Max drawdown", `${r.maxDrawdownPct}%`]);
@@ -84,8 +91,8 @@ export function PromoBacktest({ cardRef, result: r, title, showMoney, format, in
   return (
     <ShareCard ref={cardRef} format={format} footer="J signals" inline={inline}>
       <div style={{ fontSize: 34, color: "#8E8E93" }}>{title}{r.timeframe ? ` ${r.timeframe}` : ""} backtest</div>
-      <div style={{ marginTop: story ? 150 : 70, fontSize: 190, fontWeight: 700, lineHeight: 1, letterSpacing: -6, ...chromeText }}>{bigPips(r.totalPips)}</div>
-      <div style={{ fontSize: 44, color: "#BFC3C9", marginTop: 10 }}>pips over {r.trades} trades{money ? ` · ${money}` : ""}</div>
+      <div style={{ marginTop: story ? 150 : 70, fontSize: heroSize, fontWeight: 700, lineHeight: 1, letterSpacing: -6, ...chromeText }}>{hero}</div>
+      <div style={{ fontSize: 44, color: "#BFC3C9", marginTop: 10 }}>{sub}</div>
       <div style={{ marginTop: story ? 90 : 64, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 }}>
         {stats.slice(0, story ? 6 : 3).map(([l, v]) => (
           <div key={l} style={tile}><div style={{ fontSize: 26, color: "#8E8E93" }}>{l}</div><div style={{ fontSize: 56, marginTop: 6, fontFamily: mono, ...chromeText }}>{v}</div></div>
@@ -96,7 +103,6 @@ export function PromoBacktest({ cardRef, result: r, title, showMoney, format, in
         <span style={{ color: "#8E8E93", fontSize: 30 }}>First trade</span><span style={{ fontFamily: mono }}>{whenLong(r.firstTrade)}</span>
         <span style={{ color: "#8E8E93", fontSize: 30 }}>Last trade</span><span style={{ fontFamily: mono }}>{whenLong(r.lastTrade)}</span>
       </div>
-      <div style={{ marginTop: "auto", paddingTop: 40, fontSize: 28, color: "#6E7279" }}>Strategy Tester result on {r.symbol ?? "the symbol"}, not live trading. Past performance is not a promise.</div>
     </ShareCard>
   );
 }

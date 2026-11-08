@@ -35,14 +35,14 @@ function wannRows(): WannRow[] {
 }
 
 const backtest: BacktestSummary = { platform: "mt5", expert: "Gold Scalper v3", symbol: "XAUUSD", timeframe: "H1", periodStart: "2024-01-01 00:00", periodEnd: "2024-12-31 00:00", currency: "USD", initialDeposit: 10000,
-  firstTrade: "2024-01-02 09:00", lastTrade: "2024-12-20 17:45", trades: 312, buys: 160, sells: 152, wins: 190, losses: 122, winRate: 60.9, totalPips: 4812.3, netProfit: 12480.5, profitFactor: 1.92, maxDrawdownPct: 8.4, digits: 2, pipSize: 0.1, pipSizeGuessed: true, tradesList: [] };
+  firstTrade: "2024-01-02 09:00", lastTrade: "2024-12-20 17:45", trades: 312, buys: 160, sells: 152, wins: 190, losses: 122, winRate: 60.9, totalPips: 4812.3, netProfit: 12480.5, profitFactor: 1.92, maxDrawdownPct: 8.4, digits: 2, pipSize: 0.1, pipSizeGuessed: true, baseLot: 0.1, tradesList: [] };
 
 export function Preview() {
   const [params] = useSearchParams(); const { pathname } = useLocation();
   const state = params.get("state") ?? "live";
   if (pathname === "/__preview/wann") return <div className="app-frame"><div className="scroll-area"><div className="mx-auto w-full max-w-2xl pb-6"><PageTitle right={<WannBadge />}>Wann</PageTitle><WannGallery rows={wannRows()} now={Date.now()} /></div></div></div>;
   if (pathname === "/__preview/backtest") return <div className="app-frame"><div className="scroll-area"><div className="mx-auto w-full max-w-md pb-6"><PageTitle>Admin</PageTitle><div className="px-4"><Backtest initial={backtest} /></div></div></div></div>;
-  if (pathname === "/__preview/backtest-card") return <PromoBacktest result={backtest} title="XAUUSD" showMoney={params.get("money") === "1"} format={params.get("format") === "story" ? "story" : "post"} inline />;
+  if (pathname === "/__preview/backtest-card") return <PromoBacktest result={backtest} title="XAUUSD" show={params.get("show") === "cash" ? "cash" : params.get("money") === "1" || params.get("show") === "both" ? "both" : "pips"} format={params.get("format") === "story" ? "story" : "post"} inline />;
   const base: Signal = { id: "s1", ea_source_id: null, ea_uid: "1", source_name: "XAU EA", symbol: "XAUUSDm", base_symbol: "XAUUSD", direction: "buy", order_type: state === "pending" ? "buy_stop" : "market",
     entry: 2341.5, sl: 2335, tp: 2355, ea_lot: 0.5, digits: 2, point: 0.01, pip_size: 0.1, tick_size: 0.01, tick_value: 1, contract_size: 100, vol_min: 0.01, vol_step: 0.01, vol_max: 100, account_currency: "USD",
     status: state === "closed" ? "closed" : "live", expires_at: state === "pending" ? null : new Date(Date.now() + 95_000).toISOString(), triggered_at: null, trigger_price: null, closed_at: null, close_price: state === "closed" ? 2355 : null,

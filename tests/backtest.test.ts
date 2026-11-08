@@ -37,12 +37,12 @@ test("MT5 report: settings, results, deals paired into trades, pips at 0.1 for g
   assert.equal(s.firstTrade, "2024-01-02 09:00"); assert.equal(s.lastTrade, "2024-01-05 20:45");
   assert.equal(s.digits, 2); assert.equal(s.pipSize, 0.1);
   assert.deepEqual(s.tradesList.map((t) => t.pips), [52.1, 45, -50]);   // (2070.33-2065.12)/0.1, (2080-2075.5)/0.1, (2085-2090)/0.1
-  assert.equal(s.totalPips, 47.1);
+  assert.equal(s.baseLot, 0.1); assert.equal(s.totalPips, 92.1);                // lot-weighted: 52.1×1 + 45×2 − 50×1
 });
 
 test("pip size override recomputes pips", () => {
   const s = withPipSize(parseBacktest(mt5), 1);
-  assert.deepEqual(s.tradesList.map((t) => t.pips), [5.2, 4.5, -5]); assert.equal(s.totalPips, 4.7); assert.equal(s.pipSizeGuessed, false);
+  assert.deepEqual(s.tradesList.map((t) => t.pips), [5.2, 4.5, -5]); assert.equal(s.totalPips, 9.2); assert.equal(s.pipSizeGuessed, false);
 });
 
 const mt4 = `<html><body><table>
@@ -71,6 +71,25 @@ test("MT4 report: header, summary and order pairing with 5-digit pips", () => {
   assert.equal(s.firstTrade, "2024-01-02 09:00"); assert.equal(s.lastTrade, "2024-01-04 11:00");
   assert.equal(s.digits, 5); assert.equal(s.pipSize, 0.0001);
   assert.deepEqual(s.tradesList.map((t) => t.pips), [26.6, -30]); assert.equal(s.totalPips, -3.4);
+});
+
+const martingale = `<html><body><table>
+${tr("Symbol:", "USDJPY")}${tr("Currency:", "USD")}${tr("Total Net Profit:", "5.32")}
+${tr("Time", "Deal", "Symbol", "Type", "Direction", "Volume", "Price", "Order", "Commission", "Swap", "Profit", "Balance", "Comment")}
+${tr("2024.03.01 09:00:00", "2", "USDJPY", "buy", "in", "0.01", "150.000", "2", "0.00", "0.00", "0.00", "1000.00", "")}
+${tr("2024.03.01 10:00:00", "3", "USDJPY", "sell", "out", "0.01", "149.800", "3", "0.00", "0.00", "-1.34", "998.66", "")}
+${tr("2024.03.01 10:00:00", "4", "USDJPY", "buy", "in", "0.02", "149.800", "4", "0.00", "0.00", "0.00", "998.66", "")}
+${tr("2024.03.01 11:00:00", "5", "USDJPY", "sell", "out", "0.02", "149.600", "5", "0.00", "0.00", "-2.67", "995.99", "")}
+${tr("2024.03.01 11:00:00", "6", "USDJPY", "buy", "in", "0.04", "149.600", "6", "0.00", "0.00", "0.00", "995.99", "")}
+${tr("2024.03.01 13:00:00", "7", "USDJPY", "sell", "out", "0.04", "149.950", "7", "0.00", "0.00", "9.33", "1005.32", "")}
+</table></body></html>`;
+
+test("martingale: pips are lot-weighted so they agree with the money result", () => {
+  const s = parseBacktest(martingale);
+  assert.equal(s.pipSize, 0.01); assert.equal(s.baseLot, 0.01);
+  assert.deepEqual(s.tradesList.map((t) => t.pips), [-20, -20, 35]);          // the plain sum would be −5 while the account made +5.32
+  assert.equal(s.totalPips, 80);                                                // −20×1 − 20×2 + 35×4
+  assert.equal(s.netProfit, 5.32);
 });
 
 test("not a report", () => { assert.throws(() => parseBacktest("<html><body><p>hello</p></body></html>"), /no tables/); assert.throws(() => parseBacktest("<table><tr><td>x</td></tr></table>"), /Strategy Tester/); });

@@ -11,6 +11,7 @@ export interface BacktestSummary {
   trades: number; buys: number; sells: number; wins: number; losses: number; winRate: number; totalPips: number;
   netProfit: number | null; profitFactor: number | null; maxDrawdownPct: number | null;
   digits: number; pipSize: number; pipSizeGuessed: boolean;
+  baseLot: number;                                   // smallest lot in the report; totalPips counts every trade at its lot ÷ baseLot
   tradesList: BacktestTrade[];
 }
 
@@ -50,25 +51,31 @@ export function guessPipSize(symbol: string | null, digits: number): number {
   return Number(`1e${1 - digits}`);
 }
 
+const tradePips = (t: BacktestTrade, pipSize: number) => Math.round(((t.closePrice - t.openPrice) / pipSize) * (t.direction === "buy" ? 1 : -1) * 10) / 10;
+const smallestLot = (list: BacktestTrade[]) => { const v = list.map((t) => t.volume).filter((x) => x > 0); return v.length ? Math.min(...v) : 1; };
+/** Total pips, lot-weighted: each trade counts at its lot ÷ the smallest lot. Equals the plain sum when every trade uses the same lot, and it
+ *  always carries the sign of the money result (a grid or martingale loses many small trades and wins a few big ones; the plain sum would go negative). */
+const weightedPips = (list: BacktestTrade[], baseLot: number) => Math.round(list.reduce((a, t) => a + t.pips * (t.volume > 0 ? t.volume / baseLot : 1), 0) * 10) / 10;
+
 /** Re-derives pips and the pips-based counters from the trade list with a different pip size. */
 export function withPipSize(s: BacktestSummary, pipSize: number): BacktestSummary {
-  const tradesList = s.tradesList.map((t) => ({ ...t, pips: Math.round(((t.closePrice - t.openPrice) / pipSize) * (t.direction === "buy" ? 1 : -1) * 10) / 10 }));
-  return { ...s, pipSize, pipSizeGuessed: false, tradesList, totalPips: Math.round(tradesList.reduce((a, t) => a + t.pips, 0) * 10) / 10 };
+  const tradesList = s.tradesList.map((t) => ({ ...t, pips: tradePips(t, pipSize) }));
+  return { ...s, pipSize, pipSizeGuessed: false, tradesList, totalPips: weightedPips(tradesList, s.baseLot) };
 }
 
-function finish(base: Omit<BacktestSummary, "trades" | "buys" | "sells" | "wins" | "losses" | "winRate" | "totalPips" | "firstTrade" | "lastTrade" | "tradesList" | "digits" | "pipSize" | "pipSizeGuessed">, trades: BacktestTrade[], digits: number, counts: { buys: number | null; sells: number | null; wins: number | null; losses: number | null; total: number | null }): BacktestSummary {
+function finish(base: Omit<BacktestSummary, "trades" | "buys" | "sells" | "wins" | "losses" | "winRate" | "totalPips" | "firstTrade" | "lastTrade" | "tradesList" | "digits" | "pipSize" | "pipSizeGuessed" | "baseLot">, trades: BacktestTrade[], digits: number, counts: { buys: number | null; sells: number | null; wins: number | null; losses: number | null; total: number | null }): BacktestSummary {
   const pipSize = guessPipSize(base.symbol ?? trades[0]?.symbol ?? null, digits);
-  const list = trades.map((t) => ({ ...t, pips: Math.round(((t.closePrice - t.openPrice) / pipSize) * (t.direction === "buy" ? 1 : -1) * 10) / 10 }));
+  const list = trades.map((t) => ({ ...t, pips: tradePips(t, pipSize) })); const baseLot = smallestLot(list);
   const byProfit = (t: BacktestTrade) => (t.profit != null ? t.profit : t.pips);
   const wins = counts.wins ?? list.filter((t) => byProfit(t) > 0).length;
   const losses = counts.losses ?? list.filter((t) => byProfit(t) < 0).length;
   const total = counts.total ?? list.length;
   const times = list.map((t) => t.openTime).concat(list.map((t) => t.closeTime)).filter(Boolean).sort();
   return {
-    ...base, digits, pipSize, pipSizeGuessed: true, tradesList: list,
+    ...base, digits, pipSize, pipSizeGuessed: true, baseLot, tradesList: list,
     trades: total, buys: counts.buys ?? list.filter((t) => t.direction === "buy").length, sells: counts.sells ?? list.filter((t) => t.direction === "sell").length,
     wins, losses, winRate: wins + losses ? Math.round((wins / (wins + losses)) * 1000) / 10 : 0,
-    totalPips: Math.round(list.reduce((a, t) => a + t.pips, 0) * 10) / 10,
+    totalPips: weightedPips(list, baseLot),
     firstTrade: list.length ? list.map((t) => t.openTime).sort()[0] : null, lastTrade: times.length ? times[times.length - 1] : null,
   };
 }
