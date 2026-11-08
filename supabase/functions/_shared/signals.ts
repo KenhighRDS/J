@@ -2,6 +2,7 @@
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { fail } from "./http.ts";
 import { dispatchSignal, dispatchFollowUp, dispatchCloseQuestion } from "./dispatch.ts";
+import { isTrailOnly, level } from "./levels.ts";
 
 export type OrderType = "market" | "buy_stop" | "sell_stop" | "buy_limit" | "sell_limit";
 export interface IncomingEvent {
@@ -64,7 +65,7 @@ export async function applyEvent(sb: SupabaseClient, source: Source, ev: Incomin
     const isTest = Boolean(opts.isTest ?? ev.test);
     const { data: ins, error } = await sb.from("signals").insert({
       ea_source_id: source.id, ea_uid: ev.ea_uid, source_name: source.name, symbol: ev.symbol, base_symbol: baseSymbol, direction, order_type: orderType,
-      entry, sl: num(ev.sl), tp: num(ev.tp), ea_lot: num(ev.ea_lot), digits, point, pip_size: pip,
+      entry, sl: level(ev.sl), tp: level(ev.tp), ea_lot: num(ev.ea_lot), digits, point, pip_size: pip,
       tick_size: num(ev.tick_size), tick_value: num(ev.tick_value), contract_size: num(ev.contract_size),
       vol_min: num(ev.vol_min) ?? 0.01, vol_step: num(ev.vol_step) ?? 0.01, vol_max: num(ev.vol_max) ?? 100, account_currency: ev.account_currency ?? null,
       status: "live", expires_at: expiresAt, is_test: isTest, test_targets: opts.testTargets ?? [], created_by: opts.createdBy ?? null, sent_at: sentAt,
@@ -93,16 +94,22 @@ export async function applyEvent(sb: SupabaseClient, source: Source, ev: Incomin
     return { signal_id: sig.id, action: "triggered" };
   }
   if (ev.event === "update" || ev.event === "move_be") {
-    const sl = num(ev.sl), tp = num(ev.tp), entry = num(ev.entry);
+    const sl = level(ev.sl), tp = level(ev.tp), entry = num(ev.entry);
     const patch: Record<string, unknown> = {};
-    if (sl != null) patch.sl = sl; if (tp != null) patch.tp = tp;
+    if (ev.sl !== undefined) patch.sl = sl; if (ev.tp !== undefined) patch.tp = tp;   // 0 / null from MT5 clears the level
     if (entry != null && sig.order_type !== "market" && sig.status === "live") patch.entry = entry;
     const effEntry = sig.trigger_price ?? sig.entry;
     const be = ev.event === "move_be" || (sl != null && Math.abs(sl - effEntry) <= (sig.point ?? Math.pow(10, -d)) * 1.0001);
     if (Object.keys(patch).length) await sb.from("signals").update(patch).eq("id", sig.id);
+    const newSl = ev.sl !== undefined ? sl : sig.sl, newTp = ev.tp !== undefined ? tp : sig.tp;
+    if (!be && isTrailOnly(sig.direction, sig.sl, newSl, sig.tp, ev.tp !== undefined ? tp : undefined)) {
+      // trailing stop: a quiet notification, no ring (the EA already merges these to one per few minutes)
+      await dispatchFollowUp(sb, sig.id, { type: "update", title: `Trail SL to ${fmt(newSl, d)}`, body: `${sig.base_symbol} ${dirWord}: move your stop to ${fmt(newSl, d)}`, style: "normal" });
+      return { signal_id: sig.id, action: "update" };
+    }
     const f = be
       ? { type: "move_be", title: "Move SL to breakeven", body: `Move SL to breakeven — ${sig.base_symbol} ${dirWord}` }
-      : { type: "update", title: `New SL ${fmt(sl ?? sig.sl, d)} · TP ${fmt(tp ?? sig.tp, d)}`, body: `New SL ${fmt(sl ?? sig.sl, d)} · TP ${fmt(tp ?? sig.tp, d)} — ${sig.base_symbol} ${dirWord}` };
+      : { type: "update", title: `New SL ${fmt(newSl, d)} · TP ${fmt(newTp, d)}`, body: `New SL ${fmt(newSl, d)} · TP ${fmt(newTp, d)} — ${sig.base_symbol} ${dirWord}` };
     await dispatchFollowUp(sb, sig.id, { ...f, style: "call", ringSec: 30 });
     return { signal_id: sig.id, action: be ? "move_be" : "update" };
   }

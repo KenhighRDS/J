@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Profile, Receipt, Signal, SignalEvent } from "../lib/types";
 import { headline, lots, pips, price, timeShort } from "../lib/format";
 import { lotForSignal } from "../lib/lot";
+import { copiedAll as copiedEnough, lockedHint } from "../lib/unlock";
 import { CountdownRing } from "./Countdown";
 import { CopyRow } from "./CopyRow";
 import { SwipeConfirm } from "./SwipeConfirm";
@@ -23,7 +24,7 @@ export function SignalCard(p: SignalCardProps) {
   const lot = useMemo(() => lotForSignal(s, profile.balance, profile.risk_pct), [s, profile.balance, profile.risk_pct]);
   const [sinceOpen, setSinceOpen] = useState(0);
   useEffect(() => { const t = window.setInterval(() => setSinceOpen((x) => x + 1), 1000); return () => window.clearInterval(t); }, []);
-  const copiedAll = Boolean(r.copied.entry && r.copied.tp && r.copied.lot && (s.sl == null || r.copied.sl));
+  const copiedAll = copiedEnough(s, r);
   const openedMs = r.opened_at ? Date.now() - new Date(r.opened_at).getTime() : sinceOpen * 1000;
   const unlocked = copiedAll || openedMs >= 10_000;
   const finished = s.status === "closed" || s.status === "cancelled";
@@ -78,7 +79,7 @@ export function SignalCard(p: SignalCardProps) {
 
       <div className="mt-2 space-y-2">
         {canTake ? (
-          <SwipeConfirm unlocked={unlocked} lockedHint={copiedAll ? "" : "Copy entry, SL, TP and lot to unlock"} onConfirm={() => p.onTake(lot)} />
+          <SwipeConfirm unlocked={unlocked} lockedHint={copiedAll ? "" : lockedHint(s)} onConfirm={() => p.onTake(lot)} />
         ) : (
           <div className="flex h-[60px] items-center justify-center gap-2 rounded-full border border-border text-[15px]"><StatusChip status={r.status} />{r.status === "taken" && r.user_pips != null && <span className="font-mono text-[15px]">{pips(r.user_pips)} pips</span>}</div>
         )}

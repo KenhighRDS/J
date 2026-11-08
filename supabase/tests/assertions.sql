@@ -82,5 +82,22 @@ do $$ begin
   assert (select count(*) from public.signals_expire_due()) = 1, 'expire due';
   assert (select status from public.signals where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') = 'expired', 'expired';
 end $$;
+
+-- a signal without TP (EAs that trail instead): copying entry, SL and lot is enough for likely_taken
+insert into public.signals (id, ea_source_id, ea_uid, symbol, base_symbol, direction, order_type, entry, sl, tp, digits, point, pip_size, tick_size, tick_value, expires_at)
+values ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', (:'src_admin_create_ea_source'::jsonb->>'id')::uuid, '2', 'XAUUSDm', 'XAUUSD', 'buy', 'market', 2341.50, 2329.80, null, 2, 0.01, 0.1, 0.01, 1, now() + interval '2 minutes');
+select public.signal_create_receipts('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+set role authenticated; set request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+do $$ begin
+  perform public.receipt_open('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+  perform public.receipt_copy('entry', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+  perform public.receipt_copy('sl', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+  perform public.receipt_copy('lot', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+end $$;
+reset role;
+do $$ begin
+  perform public.receipts_resolve('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+  assert (select status from public.receipts where signal_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' and user_id = '22222222-2222-2222-2222-222222222222') = 'likely_taken', 'no-TP copy heuristic';
+end $$;
 rollback;
 select 'ALL ASSERTIONS PASSED' as result;
