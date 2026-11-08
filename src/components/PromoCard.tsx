@@ -90,7 +90,7 @@ export function PromoBacktest({ cardRef, result: r, title, show, format, inline 
   if (story && stats.length > 3) stats.push(["Trades", String(r.trades)]);   // a full second row of tiles on the tall format
   return (
     <ShareCard ref={cardRef} format={format} footer="J signals" inline={inline}>
-      <div style={{ fontSize: 34, color: "#8E8E93" }}>{title}{r.timeframe ? ` ${r.timeframe}` : ""} backtest</div>
+      <div style={{ fontSize: 34, color: "#8E8E93" }}>{title}</div>
       <div style={{ marginTop: story ? 150 : 70, fontSize: heroSize, fontWeight: 700, lineHeight: 1, letterSpacing: -6, ...chromeText }}>{hero}</div>
       <div style={{ fontSize: 44, color: "#BFC3C9", marginTop: 10 }}>{sub}</div>
       <div style={{ marginTop: story ? 90 : 64, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 }}>

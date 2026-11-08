@@ -147,6 +147,39 @@ function parseMt4(rows: string[][]): BacktestSummary {
   }, trades, digits, { buys: countOf(long), sells: countOf(short), wins: countOf(profitT), losses: countOf(lossT), total: countOf(field(rows, /^Total trades$/)) });
 }
 
+const uniq = (xs: (string | null)[]) => [...new Set(xs.filter((x): x is string => !!x))];
+const minOf = (xs: (string | null)[]) => { const v = xs.filter((x): x is string => !!x).sort(); return v.length ? v[0] : null; };
+const maxOf = (xs: (string | null)[]) => { const v = xs.filter((x): x is string => !!x).sort(); return v.length ? v[v.length - 1] : null; };
+
+/** Several reports as one result: counts and pips add up (each report keeps its own pip size and lot weighting), the period spans all of them,
+ *  the win rate and profit factor are recomputed from the trades, the money total needs one currency, and the drawdown shown is the worst report's. */
+export function combineBacktests(reports: BacktestSummary[]): BacktestSummary {
+  if (reports.length === 1) return reports[0];
+  const sum = (f: (r: BacktestSummary) => number) => reports.reduce((a, r) => a + f(r), 0);
+  const tradesList = reports.flatMap((r) => r.tradesList);
+  const wins = sum((r) => r.wins), losses = sum((r) => r.losses);
+  const currencies = uniq(reports.map((r) => r.currency));
+  const netProfit = currencies.length <= 1 && reports.every((r) => r.netProfit != null) ? Math.round(sum((r) => r.netProfit ?? 0) * 100) / 100 : null;
+  const profits = tradesList.map((t) => t.profit);
+  const grossWin = profits.reduce<number>((a, p) => a + (p != null && p > 0 ? p : 0), 0), grossLoss = profits.reduce<number>((a, p) => a + (p != null && p < 0 ? -p : 0), 0);
+  const profitFactor = profits.every((p) => p != null) && grossLoss > 0 ? Math.round((grossWin / grossLoss) * 100) / 100 : null;
+  const drawdowns = reports.map((r) => r.maxDrawdownPct).filter((d): d is number => d != null);
+  const timeframes = uniq(reports.map((r) => r.timeframe));
+  return {
+    platform: reports[0].platform, expert: uniq(reports.map((r) => r.expert)).join(" + ") || null, symbol: uniq(reports.map((r) => r.symbol)).join(" + ") || null,
+    timeframe: timeframes.length === 1 ? timeframes[0] : null,
+    periodStart: minOf(reports.map((r) => r.periodStart)), periodEnd: maxOf(reports.map((r) => r.periodEnd)),
+    currency: currencies.length === 1 ? currencies[0] : null, initialDeposit: null,
+    firstTrade: minOf(reports.map((r) => r.firstTrade)), lastTrade: maxOf(reports.map((r) => r.lastTrade)),
+    trades: sum((r) => r.trades), buys: sum((r) => r.buys), sells: sum((r) => r.sells), wins, losses,
+    winRate: wins + losses ? Math.round((wins / (wins + losses)) * 1000) / 10 : 0,
+    totalPips: Math.round(sum((r) => r.totalPips) * 10) / 10,
+    netProfit, profitFactor, maxDrawdownPct: drawdowns.length ? Math.max(...drawdowns) : null,
+    digits: Math.max(...reports.map((r) => r.digits)), pipSize: reports[0].pipSize, pipSizeGuessed: reports.some((r) => r.pipSizeGuessed),
+    baseLot: Math.min(...reports.map((r) => r.baseLot)), tradesList,
+  };
+}
+
 /** Parses a Strategy Tester report (MT5 or MT4 HTML). Throws with a plain-language message when it is not one. */
 export function parseBacktest(html: string): BacktestSummary {
   const rows = rowsOf(html);

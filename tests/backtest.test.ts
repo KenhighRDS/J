@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decodeReportFile, guessPipSize, parseBacktest, withPipSize } from "../src/lib/backtest.ts";
+import { combineBacktests, decodeReportFile, guessPipSize, parseBacktest, withPipSize } from "../src/lib/backtest.ts";
 
 const td = (c: string) => `<td>${c}</td>`;
 const tr = (...c: string[]) => `<tr>${c.map(td).join("")}</tr>`;
@@ -90,6 +90,20 @@ test("martingale: pips are lot-weighted so they agree with the money result", ()
   assert.deepEqual(s.tradesList.map((t) => t.pips), [-20, -20, 35]);          // the plain sum would be −5 while the account made +5.32
   assert.equal(s.totalPips, 80);                                                // −20×1 − 20×2 + 35×4
   assert.equal(s.netProfit, 5.32);
+});
+
+test("several reports combine into one result", () => {
+  const a = parseBacktest(mt5), b = parseBacktest(mt4);
+  assert.equal(combineBacktests([a]), a);
+  const c = combineBacktests([a, b]);
+  assert.equal(c.trades, 5); assert.equal(c.buys, 3); assert.equal(c.sells, 2); assert.equal(c.wins, 3); assert.equal(c.losses, 2); assert.equal(c.winRate, 60);
+  assert.equal(c.totalPips, 88.7);                                              // 92.1 − 3.4, each report at its own pip size
+  assert.equal(c.symbol, "XAUUSD + EURUSD"); assert.equal(c.timeframe, "H1"); assert.equal(c.currency, "USD");
+  assert.equal(c.netProfit, 2046.96); assert.equal(c.profitFactor, 2.11);      // (52.1 + 90 + 26.6) / (50 + 30)
+  assert.equal(c.maxDrawdownPct, 3.12); assert.equal(c.baseLot, 0.1);
+  assert.equal(c.periodStart, "2024-01-01 00:00"); assert.equal(c.periodEnd, "2024-12-31 00:00");
+  assert.equal(c.firstTrade, "2024-01-02 09:00"); assert.equal(c.lastTrade, "2024-01-05 20:45");
+  assert.equal(c.tradesList.length, 5);
 });
 
 test("not a report", () => { assert.throws(() => parseBacktest("<html><body><p>hello</p></body></html>"), /no tables/); assert.throws(() => parseBacktest("<table><tr><td>x</td></tr></table>"), /Strategy Tester/); });
