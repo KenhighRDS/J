@@ -14,7 +14,10 @@
     "render:sfx": "remotion render src/index.ts JPromoSfx out/j-promo-sfx.mp4 --codec h264 --crf 17 --overwrite",
     "render:voice-sfx": "remotion render src/index.ts JPromoVoiceSfx out/j-promo-voice-sfx.mp4 --codec h264 --crf 17 --overwrite",
     "shots:howto": "node scripts/capture-howto.cjs",
-    "render:howto": "remotion render src/index.ts JHowTo out/j-howto.mp4 --codec h264 --crf 17 --overwrite"
+    "render:howto": "remotion render src/index.ts JHowTo out/j-howto.mp4 --codec h264 --crf 17 --overwrite",
+    "audio:wann": "node scripts/gen-audio-wann.mjs",
+    "shots:wann": "node scripts/capture-wann.cjs",
+    "render:wann": "remotion render src/index.ts JWann out/j-wann.mp4 --codec h264 --crf 17 --overwrite"
   },
   "dependencies": {
     "@remotion/cli": "^4.0.541",
