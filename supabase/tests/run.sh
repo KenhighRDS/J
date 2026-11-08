@@ -8,7 +8,7 @@ psql -v ON_ERROR_STOP=1 -q -d postgres -c "create database $DB" >/dev/null
 trap 'psql -q -d postgres -c "drop database if exists $DB" >/dev/null' EXIT
 psql -v ON_ERROR_STOP=1 -q -d "$DB" -c "create extension if not exists pgcrypto" -f tests/auth_stub.sql >/dev/null
 for f in migrations/*.sql; do
-  case "$f" in *_cron.sql) continue;; esac
+  case "$f" in *_cron.sql|*_storage.sql) continue;; esac   # Supabase-only (pg_cron, storage schema)
   echo "  applying $(basename "$f")"
   psql -v ON_ERROR_STOP=1 -q -d "$DB" -f "$f" >/dev/null
 done

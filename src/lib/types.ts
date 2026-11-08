@@ -17,6 +17,7 @@ export interface Signal {
   status: SignalStatus; expires_at: string | null; triggered_at: string | null; trigger_price: number | null;
   closed_at: string | null; close_price: number | null; result_pips: number | null; outcome: "win" | "loss" | "be" | null; close_reason: "tp" | "sl" | "manual" | null;
   is_test: boolean; sent_at: string | null; created_at: string;
+  shot_open?: string | null; shot_close?: string | null;   // EA chart images (storage paths in trade-shots)
 }
 export type ReceiptStatus = "pending" | "opened" | "likely_taken" | "taken" | "skipped" | "missed" | "not_taken";
 export type ReceiptSource = "open" | "swipe" | "skip" | "copy" | "tracker" | "close_answer" | "expiry" | null;

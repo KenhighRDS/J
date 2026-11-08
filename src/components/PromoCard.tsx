@@ -73,6 +73,44 @@ const tile: React.CSSProperties = { background: "rgba(20,20,22,0.85)", border: "
 const mono = "'JetBrains Mono Variable', ui-monospace, monospace";
 const bigPips = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 1 })}`;
 
+export interface SignalShots { open?: string | null; close?: string | null }
+const clock = (iso: string | null) => (iso ? new Date(iso).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
+
+/** One card, two images: the EA's chart where we opened ("Nou achte la" / "Nou vann la") and where we closed ("Nou close la"). */
+export function PromoSignalShots({ cardRef, signal: s, shots, format, inline }: { cardRef?: React.RefObject<HTMLDivElement | null>; signal: Signal; shots: SignalShots; format: ShareFormat; inline?: boolean }) {
+  const story = format === "story", closed = s.status === "closed" && s.result_pips != null;
+  const both = Boolean(shots.open && shots.close);
+  const imgH = story ? (both ? 560 : 900) : both ? 408 : 680;
+  const frame = (src: string, caption: string) => (
+    <div>
+      <div style={{ height: imgH, borderRadius: 22, overflow: "hidden", border: "1px solid #232326", background: "#0a0a0c" }}>
+        <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "0% 50%", display: "block" }} />
+      </div>
+      <div style={{ marginTop: 12, fontSize: 28, color: "#8E8E93" }}>{caption}</div>
+    </div>
+  );
+  return (
+    <ShareCard ref={cardRef} format={format} footer="J signals" inline={inline}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 24 }}>
+        <div style={{ flex: 1, minWidth: 0, fontSize: story ? 84 : 70, fontWeight: 700, letterSpacing: -2, lineHeight: 1, ...chromeText }}>{s.base_symbol}</div>
+        {closed
+          ? <div style={{ fontFamily: mono, fontSize: story ? 84 : 70, fontWeight: 600, lineHeight: 1, ...chromeText }}>{bigPips(s.result_pips ?? 0)}</div>
+          : <div style={{ fontSize: 30, padding: "8px 18px", borderRadius: 999, border: "1px solid #2FBF71", color: "#2FBF71" }}>In play</div>}
+      </div>
+      <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", fontSize: 32 }}>
+        <span style={{ color: s.direction === "buy" ? "#2FBF71" : "#E5484D", fontWeight: 600 }}>{headline("", s.direction, s.order_type).trim()}</span>
+        {closed && <span style={{ color: "#8E8E93" }}>pips</span>}
+      </div>
+      {story && <div style={{ flex: 1 }} />}
+      <div style={{ marginTop: story ? 0 : 34, display: "flex", flexDirection: "column", gap: story ? 40 : 20 }}>
+        {shots.open && frame(shots.open, `Open · ${clock(s.triggered_at ?? s.sent_at ?? s.created_at)}`)}
+        {shots.close && frame(shots.close, `Close · ${clock(s.closed_at)}`)}
+      </div>
+      {story && <div style={{ flex: 1 }} />}
+    </ShareCard>
+  );
+}
+
 export type BacktestShow = "pips" | "cash" | "both";
 const bigMoney = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 

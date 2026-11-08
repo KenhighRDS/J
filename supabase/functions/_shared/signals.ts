@@ -3,16 +3,18 @@ import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { fail } from "./http.ts";
 import { dispatchSignal, dispatchFollowUp, dispatchCloseQuestion } from "./dispatch.ts";
 import { isTrailOnly, level } from "./levels.ts";
+import { decodePngBase64, shotPath } from "./shots.ts";
 
 export type OrderType = "market" | "buy_stop" | "sell_stop" | "buy_limit" | "sell_limit";
 export interface IncomingEvent {
-  event: "open" | "triggered" | "update" | "move_be" | "partial" | "close" | "cancel";
+  event: "open" | "triggered" | "update" | "move_be" | "partial" | "close" | "cancel" | "shot";
   ea_uid: string; symbol: string; ea?: string;
   direction?: "buy" | "sell"; order_type?: OrderType;
   entry?: number; sl?: number | null; tp?: number | null; ea_lot?: number; expiry_sec?: number;
   digits?: number; point?: number; pip_size?: number; tick_size?: number; tick_value?: number; contract_size?: number;
   vol_min?: number; vol_step?: number; vol_max?: number; account_currency?: string;
   sent_at?: string; price?: number; lots?: number; reason?: "tp" | "sl" | "manual"; profit?: number; test?: boolean;
+  kind?: "open" | "close"; png_base64?: string;   // "shot": the chart image at open or close
 }
 export interface Source { id: string | null; name: string }
 export interface ApplyOptions { createdBy?: string; isTest?: boolean; testTargets?: string[] }
@@ -82,6 +84,7 @@ export async function applyEvent(sb: SupabaseClient, source: Source, ev: Incomin
   }
 
   if (!sig) fail(404, `Unknown signal ${ev.ea_uid} for ${source.name}`);
+  if (ev.event === "shot") return await attachShot(sb, sig.id, ev);
   const { error: evErr } = await sb.from("signal_events").insert({ signal_id: sig.id, type: ev.event, payload: ev as unknown as Record<string, unknown>, dedupe_key: dedupe });
   if (evErr) { if (evErr.code === "23505") return { signal_id: sig.id, action: ev.event, duplicate: true }; fail(500, evErr.message); }
   const d = sig.digits, head = headline(sig), dirWord = sig.direction.toUpperCase();
@@ -146,6 +149,18 @@ export async function applyEvent(sb: SupabaseClient, source: Source, ev: Incomin
     return { signal_id: sig.id, action: "cancel" };
   }
   fail(400, `Unknown event ${String(ev.event)}`);
+}
+
+/** The EA's chart image at open or close: stored privately (trade-shots bucket) and linked on the signal. Not an event row. */
+async function attachShot(sb: SupabaseClient, signalId: string, ev: IncomingEvent): Promise<{ signal_id: string; action: string }> {
+  const kind = ev.kind === "open" || ev.kind === "close" ? ev.kind : fail(400, "kind must be open or close");
+  const bytes = decodePngBase64(ev.png_base64);
+  if (!bytes) fail(400, "png_base64 must be a PNG of at most 3 MB");
+  const path = shotPath(signalId, kind);
+  const { error } = await sb.storage.from("trade-shots").upload(path, bytes, { contentType: "image/png", upsert: true });
+  if (error) fail(500, `storage: ${error.message}`);
+  await sb.from("signals").update(kind === "open" ? { shot_open: path } : { shot_close: path }).eq("id", signalId);
+  return { signal_id: signalId, action: `shot:${kind}` };
 }
 
 export async function sha256Hex(s: string): Promise<string> {

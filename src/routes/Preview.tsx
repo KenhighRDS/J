@@ -1,6 +1,7 @@
 // Dev-only fixtures for reviewing screens without a backend:
 //   /__preview/signal?state=live|closed   /__preview/wann   /__preview/backtest   /__preview/backtest-card?format=post|story
 //   /__preview/wann-report   /__preview/called-it?n=1..8&format=post|story   /__preview/wann?min=90   /__preview/wann-call?state=live|won
+//   /__preview/signal-shots?format=post|story&state=closed|live   (images from window.__J_SHOTS, else drawn placeholders)
 import { useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { SignalCard } from "../components/SignalCard";
@@ -11,6 +12,7 @@ import { PageTitle } from "../components/ui";
 import { Backtest } from "./admin/Backtest";
 import { WannReport } from "./admin/WannReport";
 import { PromoCalledIt } from "../components/PromoCalledIt";
+import { PromoSignalShots } from "../components/PromoCard";
 import type { BacktestSummary } from "../lib/backtest";
 import type { Profile, Receipt, Signal, WannCall } from "../lib/types";
 
@@ -55,6 +57,16 @@ export function Preview() {
   const state = params.get("state") ?? "live";
   if (pathname === "/__preview/wann") return <div className="app-frame"><div className="scroll-area"><div className="mx-auto w-full max-w-2xl pb-6"><PageTitle right={<WannBadge />}>Wann</PageTitle><WannGallery rows={wannRows(Number(params.get("min") ?? 85))} now={Date.now()} /></div></div></div>;
   if (pathname === "/__preview/backtest") return <div className="app-frame"><div className="scroll-area"><div className="mx-auto w-full max-w-md pb-6"><PageTitle>Admin</PageTitle><div className="px-4"><Backtest initial={params.get("two") === "1" ? [backtest, { ...backtest, expert: "JPY Grid", symbol: "USDJPY", timeframe: "M5", digits: 3, pipSize: 0.01, baseLot: 0.01, trades: 180, buys: 95, sells: 85, wins: 120, losses: 60, winRate: 66.7, totalPips: 2210.5, netProfit: 3120.4, profitFactor: 1.4, maxDrawdownPct: 12.1, firstTrade: "2024-03-04 08:05", lastTrade: "2024-11-29 21:50" }] : [backtest]} /></div></div></div></div>;
+  if (pathname === "/__preview/signal-shots") {
+    const closed = params.get("state") !== "live";
+    const given = (window as unknown as { __J_SHOTS?: { open?: string; close?: string } }).__J_SHOTS;
+    const s: Signal = { id: "s9", ea_source_id: null, ea_uid: "9", source_name: "J", symbol: "XAUUSDm", base_symbol: "XAUUSD", direction: "buy", order_type: "market", entry: 4182.4, sl: 4161.5, tp: null, ea_lot: 0.2, digits: 2, point: 0.01, pip_size: 0.1,
+      tick_size: 0.01, tick_value: 1, contract_size: 100, vol_min: 0.01, vol_step: 0.01, vol_max: 100, account_currency: "USD", status: closed ? "closed" : "live", expires_at: null, triggered_at: null, trigger_price: null,
+      closed_at: closed ? new Date(Date.now() - 2 * 36e5).toISOString() : null, close_price: closed ? 4226.9 : null, result_pips: closed ? 445 : null, outcome: closed ? "win" : null, close_reason: closed ? "manual" : null,
+      is_test: false, sent_at: new Date(Date.now() - 14 * 36e5).toISOString(), created_at: new Date().toISOString() };
+    const shots = given ?? { open: placeholderShot("Nou achte la"), close: closed ? placeholderShot("Nou close la") : null };
+    return <PromoSignalShots signal={s} shots={closed ? shots : { open: shots.open }} format={params.get("format") === "story" ? "story" : "post"} inline />;
+  }
   if (pathname === "/__preview/wann-call") return <WannCallPreview won={params.get("state") === "won"} />;
   if (pathname === "/__preview/wann-report") return <div className="app-frame"><div className="scroll-area"><div className="mx-auto w-full max-w-md pb-6"><PageTitle>Admin</PageTitle><div className="px-4"><WannReport initial={wonCalls()} /></div></div></div></div>;
   if (pathname === "/__preview/called-it") return <PromoCalledIt calls={wonCalls().slice(0, Number(params.get("n") ?? 1)).reverse()} format={params.get("format") === "story" ? "story" : "post"} inline />;
@@ -72,6 +84,16 @@ function WannCallPreview({ won }: { won: boolean }) {
     status: won ? "finished" : "live", final_score: won ? "3–0" : null, outcome: won ? "won" : null, sent_at: new Date().toISOString(), created_at: new Date().toISOString() };
   const [receipt, setReceipt] = useState<Receipt>({ id: "r", signal_id: null, wann_call_id: "rm", user_id: "u", kind: "wann", delivered_at: null, opened_at: new Date().toISOString(), copied: {}, status: won ? "taken" : "opened", status_source: null, user_lot: null, ring_count: 1, question_sent_at: null, answered_at: null, user_entry: null, user_close: null, user_pips: null });
   return <div className="app-frame"><WannCard call={call} receipt={receipt} onCopy={(f) => setReceipt({ ...receipt, copied: { ...receipt.copied, [f]: "x" } })} onTake={() => setReceipt({ ...receipt, status: "taken" })} onSkip={() => setReceipt({ ...receipt, status: "skipped" })} onClose={() => undefined} /></div>;
+}
+
+/** A drawn stand-in for an EA chart image (1200 × 675) when no real one is injected. */
+function placeholderShot(label: string): string {
+  const c = document.createElement("canvas"); c.width = 1200; c.height = 675; const g = c.getContext("2d")!;
+  g.fillStyle = "#0a0a0c"; g.fillRect(0, 0, 1200, 675);
+  let p = 340;
+  for (let i = 0; i < 70; i++) { const o = p; p += Math.sin(i / 5) * 9 + (i > 40 ? -5 : 2); const x = 40 + i * 15; g.fillStyle = p < o ? "#2fbf71" : "#e5484d"; g.fillRect(x, Math.min(o, p), 9, Math.max(3, Math.abs(p - o))); }
+  g.fillStyle = "#f5f5f7"; g.font = "bold 34px Arial"; g.fillText(label, 640, 300);
+  return c.toDataURL("image/png");
 }
 
 function SignalPreview({ base, state }: { base: Signal; state: string }) {
