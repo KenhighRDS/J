@@ -43,7 +43,7 @@ function wonCalls(): WannCall[] {
   const base = new Date(); base.setHours(21, 0, 0, 0);
   return games.map(([home, away, competition, score, label], i) => {
     const k = new Date(base.getTime() - (Math.floor(i / 4) * 24 + (i % 4) * 2.5) * 36e5).toISOString();
-    return { id: `w${i}`, wann_game_id: 500 + i, sport: "Football", competition, home, away, kickoff_utc: k, pick: label.includes("or draw") ? "home_or_draw" : "home", pick_label: label, probability: 98.4 - i * 1.1, call_type: label.includes("or draw") ? "win_or_draw" : "straight", status: "finished", final_score: score, outcome: "won", sent_at: k, created_at: k };
+    return { id: `w${i}`, wann_game_id: 500 + i, sport: "Football", competition, home, away, kickoff_utc: k, pick: label.includes("or draw") ? "home_or_draw" : "home", pick_label: label, probability: 98.4 - i * 1.1, call_type: label.includes("or draw") ? "win_or_draw" : "straight", status: "finished", final_score: score, outcome: "won", sent_at: k, created_at: k, prediction_time: new Date(new Date(k).getTime() - (18 + i) * 36e5).toISOString() };
   });
 }
 

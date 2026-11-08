@@ -9,9 +9,12 @@ export function parseScore(s: string | null): [number, number] | null {
   return m ? [Number(m[1]), Number(m[2])] : null;
 }
 
-/** Calls a card may claim: finished and won. Oldest kickoff first, the order they played out. */
+/** When Wann called it: Wann's own prediction time (it matches the probability shown), else when J sent the call. */
+export const calledAt = (c: WannCall): string => c.prediction_time ?? c.sent_at ?? c.created_at;
+
+/** Calls a card may claim: finished and won. Earliest call first. */
 export function claimable(calls: WannCall[]): WannCall[] {
-  return calls.filter((c) => c.status === "finished" && c.outcome === "won").sort((a, b) => a.kickoff_utc.localeCompare(b.kickoff_utc));
+  return calls.filter((c) => c.status === "finished" && c.outcome === "won").sort((a, b) => calledAt(a).localeCompare(calledAt(b)));
 }
 
 /** Combo headline: "4 for 4." */

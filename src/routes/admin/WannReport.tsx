@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, Empty, Notice, Spinner } from "../../components/ui";
 import { PromoCalledIt } from "../../components/PromoCalledIt";
 import { shareSize, type ShareFormat } from "../../components/ShareCard";
-import { MAX_LEGS, claimable } from "../../lib/calledIt";
+import { MAX_LEGS, calledAt, claimable } from "../../lib/calledIt";
 import { canDownloadDirectly, downloadDataUrl, renderPng, sharePng } from "../../lib/share";
 import { supabase } from "../../lib/supabase";
 import type { WannCall } from "../../lib/types";
@@ -26,7 +26,7 @@ export function WannReport({ initial }: { initial?: WannCall[] }) {
   useEffect(() => {
     if (initial) return;
     void (async () => {
-      const { data, error: e } = await supabase.from("wann_calls").select("*").eq("status", "finished").eq("outcome", "won").order("kickoff_utc", { ascending: false }).limit(400);
+      const { data, error: e } = await supabase.from("wann_calls").select("*").eq("status", "finished").eq("outcome", "won").order("prediction_time", { ascending: false, nullsFirst: false }).limit(400);
       if (e) setError(e.message); else setCalls((data ?? []) as WannCall[]);
     })();
   }, [initial]);
@@ -39,7 +39,7 @@ export function WannReport({ initial }: { initial?: WannCall[] }) {
   const days = useMemo(() => {
     const won = [...claimable(calls ?? [])].reverse();                       // newest first in the picker
     const groups: { day: string; rows: WannCall[] }[] = [];
-    for (const c of won) { const d = dayOf(c.kickoff_utc); const g = groups[groups.length - 1]; if (g && g.day === d) g.rows.push(c); else groups.push({ day: d, rows: [c] }); }
+    for (const c of won) { const d = dayOf(calledAt(c)); const g = groups[groups.length - 1]; if (g && g.day === d) g.rows.push(c); else groups.push({ day: d, rows: [c] }); }
     return groups;
   }, [calls]);
   const selected = useMemo(() => claimable((calls ?? []).filter((c) => picked.includes(c.id))), [calls, picked]);
@@ -88,7 +88,7 @@ export function WannReport({ initial }: { initial?: WannCall[] }) {
     <div className="space-y-4">
       <Card className="p-4">
         <h2 className="text-[17px] font-semibold">Wann report</h2>
-        <p className="mt-1.5 text-[14px] text-muted">Pick won calls for a “J × Wann called it” image. One call makes a single card, two or more make a combo, up to {MAX_LEGS}.</p>
+        <p className="mt-1.5 text-[14px] text-muted">Pick won calls for a “J × Wann called it” image. One call makes a single card, two or more make a combo, up to {MAX_LEGS}. Times are when Wann made the call.</p>
       </Card>
       {days.length === 0 ? <Empty title="No won calls yet" body="Calls show up here once their game is finished and the call won." /> : days.map((g) => {
         const allIn = g.rows.every((r) => picked.includes(r.id));
@@ -111,7 +111,7 @@ export function WannReport({ initial }: { initial?: WannCall[] }) {
                       <span className="block truncate text-[15px]">{c.home} <span className="font-mono tabular">{c.final_score}</span> {c.away}</span>
                       <span className="mt-0.5 block truncate text-[13px] text-muted">{c.pick_label} · <span className="font-mono tabular">{Math.round(c.probability)}%</span> · {c.competition}</span>
                     </span>
-                    <span className="shrink-0 font-mono text-[13px] text-muted tabular">{timeOf(c.kickoff_utc)}</span>
+                    <span className="shrink-0 text-right text-[11px] leading-tight text-muted">called<span className="block font-mono text-[13px] tabular">{timeOf(calledAt(c))}</span></span>
                   </button>
                 );
               })}

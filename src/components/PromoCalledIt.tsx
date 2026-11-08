@@ -1,11 +1,11 @@
 import { ShareCard, chromeText, shareSize, type ShareFormat } from "./ShareCard";
-import { comboHeadline, dateSpan, parseScore, sameDay } from "../lib/calledIt";
+import { calledAt, comboHeadline, dateSpan, parseScore, sameDay } from "../lib/calledIt";
 import type { WannCall } from "../lib/types";
 
 const mono = "'JetBrains Mono Variable', ui-monospace, monospace";
 const dim = "#8E8E93", soft = "#BFC3C9", line = "#232326", won = "#2FBF71";
 const ellipsis: React.CSSProperties = { minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
-const kickoff = (iso: string, withDay: boolean) => new Date(iso).toLocaleString(undefined, withDay ? { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" } : { hour: "2-digit", minute: "2-digit" });
+const when = (iso: string, withDay: boolean) => new Date(iso).toLocaleString(undefined, withDay ? { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" } : { hour: "2-digit", minute: "2-digit" });
 /** Team names shrink with length so long club names stay on one line. */
 const teamSize = (name: string, base: number) => (name.length <= 12 ? base : name.length <= 18 ? base * 0.84 : base * 0.7);
 
@@ -24,15 +24,15 @@ const WonMark = ({ size }: { size: number }) => (
 /** "J × Wann called it": one won call as a scoreboard, or several as a combo ("4 for 4."). Only won calls are passed in. */
 export function PromoCalledIt({ cardRef, calls, format, inline }: { cardRef?: React.RefObject<HTMLDivElement | null>; calls: WannCall[]; format: ShareFormat; inline?: boolean }) {
   const story = format === "story";
-  const isos = calls.map((c) => c.kickoff_utc);
+  const isos = calls.map(calledAt);
   if (calls.length === 1) {
     const c = calls[0]; const sc = parseScore(c.final_score);
     return (
       <ShareCard ref={cardRef} format={format} footer="J × Wann" inline={inline}>
-        <Lockup right={new Date(c.kickoff_utc).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })} />
+        <Lockup right={new Date(calledAt(c)).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })} />
         <div style={{ marginTop: story ? 150 : 96, fontSize: story ? 220 : 176, fontWeight: 700, lineHeight: 0.95, letterSpacing: story ? -9 : -7, ...chromeText }}>Called it.</div>
         <div style={{ flex: 1, minHeight: 78 }} />
-        <div style={{ fontSize: story ? 34 : 30, color: dim }}>{c.competition} · {kickoff(c.kickoff_utc, true)}</div>
+        <div style={{ fontSize: story ? 34 : 30, color: dim }}>{c.competition} · called {when(calledAt(c), true)}</div>
         <div style={{ marginTop: 22, display: "grid", gridTemplateColumns: "1fr auto", columnGap: 40, rowGap: 6, alignItems: "baseline" }}>
           {[c.home, c.away].flatMap((team, i) => [
             <div key={`t${i}`} style={{ ...ellipsis, fontSize: teamSize(team, story ? 92 : 74), fontWeight: 600, letterSpacing: -1.5 }}>{team}</div>,
@@ -74,7 +74,7 @@ export function PromoCalledIt({ cardRef, calls, format, inline }: { cardRef?: Re
               <div style={{ fontFamily: mono, fontSize: 44 * k, lineHeight: 1.2, fontWeight: 600, ...chromeText }}>{c.final_score ?? ""}</div>
             </div>
             <div style={{ marginTop: 8 * k, display: "flex", alignItems: "center", gap: 14, height: 28 * k * 1.25, fontSize: 28 * k, lineHeight: 1.25, color: soft }}>
-              <span style={{ ...ellipsis, flex: 1 }}>{c.pick_label}{oneDay ? "" : <span style={{ color: dim }}> · {kickoff(c.kickoff_utc, true)}</span>}</span>
+              <span style={{ ...ellipsis, flex: 1 }}>{c.pick_label}<span style={{ color: dim }}> · called {when(calledAt(c), !oneDay)}</span></span>
               <span style={{ fontFamily: mono, color: dim }}>{Math.round(c.probability)}%</span>
               <WonMark size={28 * k} />
             </div>

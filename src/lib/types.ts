@@ -38,6 +38,7 @@ export interface WannCall {
   pick: "home" | "draw" | "away" | "home_or_draw" | "away_or_draw"; pick_label: string; probability: number;
   call_type: "straight" | "win_or_draw"; status: "live" | "withdrawn" | "finished"; final_score: string | null;
   outcome: "won" | "lost" | "void" | null; sent_at: string | null; created_at: string;
+  prediction_time?: string | null;   // when Wann made (or last updated) the call, from the Wann feed
 }
 export interface Report { id: string; user_id: string | null; period: "weekly" | "monthly"; period_start: string; period_end: string; data: ReportData; created_at: string }
 export interface ReportSymbolLine { symbol: string; pips: number; n: number }
