@@ -10,6 +10,7 @@ const tabs = [
   { to: "/admin/settings", label: "Settings" },
   { to: "/admin/reports", label: "Reports" },
   { to: "/admin/backtest", label: "Backtest" },
+  { to: "/admin/wann", label: "Wann report" },
 ];
 
 export function AdminLayout() {

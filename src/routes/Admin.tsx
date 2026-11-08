@@ -8,6 +8,7 @@ import { AdminSignals } from "./admin/Signals";
 import { AdminSettings } from "./admin/AdminSettings";
 import { AdminReports } from "./admin/AdminReports";
 import { Backtest } from "./admin/Backtest";
+import { WannReport } from "./admin/WannReport";
 import type { Profile } from "../lib/types";
 
 export function Admin({ me }: { me: Profile }) {
@@ -22,6 +23,7 @@ export function Admin({ me }: { me: Profile }) {
         <Route path="settings" element={<AdminSettings />} />
         <Route path="reports" element={<AdminReports />} />
         <Route path="backtest" element={<Backtest />} />
+        <Route path="wann" element={<WannReport />} />
       </Route>
     </Routes>
   );
