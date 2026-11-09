@@ -113,10 +113,21 @@ export function PromoSignalShots({ cardRef, signal: s, shots, format, inline }: 
 
 export type BacktestShow = "pips" | "cash" | "both";
 const bigMoney = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+/** "XAUUSD.m", "XAUUSDm", "USDJPY#" → the plain instrument name a reader recognises. */
+export const plainSymbol = (s: string) => { const b = s.trim().split(/[.#_\s]/)[0] || s.trim(); return b.replace(/^([A-Z]{6})[a-z]+$/, "$1"); };
+/** One chip per report: the instrument and timeframe, plus that report's own figure when the card merges several. */
+function instrumentChips(parts: BacktestSummary[], show: BacktestShow): string[] {
+  const named = parts.filter((p) => p.symbol);
+  if (named.length === 0) return [];
+  const label = (p: BacktestSummary) => `${plainSymbol(p.symbol ?? "")}${p.timeframe ? ` ${p.timeframe}` : ""}`;
+  if (parts.length === 1) return [label(parts[0])];
+  return named.map((p) => `${label(p)}  ${show === "cash" && p.netProfit != null ? bigMoney(p.netProfit) : bigPips(p.totalPips)}`);
+}
 
 /** Backtest result in the house style: the hero is the pips, the cash result, or pips with the cash beside it; then the tiles and the first/last trade. */
-export function PromoBacktest({ cardRef, result: r, title, show, format, inline }: { cardRef?: React.RefObject<HTMLDivElement | null>; result: BacktestSummary; title: string; show: BacktestShow; format: ShareFormat; inline?: boolean }) {
+export function PromoBacktest({ cardRef, result: r, parts, title, show, format, inline }: { cardRef?: React.RefObject<HTMLDivElement | null>; result: BacktestSummary; parts?: BacktestSummary[]; title: string; show: BacktestShow; format: ShareFormat; inline?: boolean }) {
   const story = format === "story";
+  const chips = instrumentChips(parts?.length ? parts : [r], show);
   const money = r.netProfit != null ? bigMoney(r.netProfit) : null;
   const cash = show === "cash" && money != null;
   const hero = cash ? money : bigPips(r.totalPips);
@@ -129,7 +140,13 @@ export function PromoBacktest({ cardRef, result: r, title, show, format, inline 
   return (
     <ShareCard ref={cardRef} format={format} footer="J signals" inline={inline}>
       <div style={{ fontSize: 34, color: "#8E8E93" }}>{title}</div>
-      <div style={{ marginTop: story ? 150 : 70, fontSize: heroSize, fontWeight: 700, lineHeight: 1, letterSpacing: -6, ...chromeText }}>{hero}</div>
+      {chips.length > 0 && (
+        <div style={{ marginTop: 22, display: "flex", flexWrap: "wrap", gap: 14 }}>
+          {chips.slice(0, 4).map((c, i) => <span key={i} style={{ fontSize: 30, fontFamily: mono, color: "#F5F5F7", whiteSpace: "pre", background: "rgba(20,20,22,0.85)", border: "1px solid #2A2A2E", borderRadius: 999, padding: "10px 24px" }}>{c}</span>)}
+          {chips.length > 4 && <span style={{ fontSize: 30, color: "#8E8E93", padding: "10px 8px" }}>+{chips.length - 4} more</span>}
+        </div>
+      )}
+      <div style={{ marginTop: story ? 130 : chips.length > 2 ? 40 : 56, fontSize: heroSize, fontWeight: 700, lineHeight: 1, letterSpacing: -6, ...chromeText }}>{hero}</div>
       <div style={{ fontSize: 44, color: "#BFC3C9", marginTop: 10 }}>{sub}</div>
       <div style={{ marginTop: story ? 90 : 64, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 }}>
         {stats.slice(0, story ? 6 : 3).map(([l, v]) => (

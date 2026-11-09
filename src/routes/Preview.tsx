@@ -13,7 +13,7 @@ import { Backtest } from "./admin/Backtest";
 import { WannReport } from "./admin/WannReport";
 import { PromoCalledIt } from "../components/PromoCalledIt";
 import { PromoSignalShots } from "../components/PromoCard";
-import type { BacktestSummary } from "../lib/backtest";
+import { combineBacktests, type BacktestSummary } from "../lib/backtest";
 import type { Profile, Receipt, Signal, WannCall } from "../lib/types";
 
 const profile: Profile = { id: "u", email: "wolf@example.com", name: "Wolf", role: "admin", status: "active", balance: 10000, balance_currency: "USD", risk_pct: 1, balance_source: "manual", last_seen: null, created_at: "" };
@@ -52,11 +52,13 @@ function wonCalls(): WannCall[] {
 const backtest: BacktestSummary = { platform: "mt5", expert: "Gold Scalper v3", symbol: "XAUUSD", timeframe: "H1", periodStart: "2024-01-01 00:00", periodEnd: "2024-12-31 00:00", currency: "USD", initialDeposit: 10000,
   firstTrade: "2024-01-02 09:00", lastTrade: "2024-12-20 17:45", trades: 312, buys: 160, sells: 152, wins: 190, losses: 122, winRate: 60.9, totalPips: 4812.3, netProfit: 12480.5, profitFactor: 1.92, maxDrawdownPct: 8.4, digits: 2, pipSize: 0.1, pipSizeGuessed: true, baseLot: 0.1, tradesList: [] };
 
+const backtestJpy: BacktestSummary = { ...backtest, expert: "JPY Grid", symbol: "USDJPYm", timeframe: "M5", digits: 3, pipSize: 0.01, baseLot: 0.01, trades: 180, buys: 95, sells: 85, wins: 120, losses: 60, winRate: 66.7, totalPips: 2210.5, netProfit: 3120.4, profitFactor: 1.4, maxDrawdownPct: 12.1, firstTrade: "2024-03-04 08:05", lastTrade: "2024-11-29 21:50" };
+
 export function Preview() {
   const [params] = useSearchParams(); const { pathname } = useLocation();
   const state = params.get("state") ?? "live";
   if (pathname === "/__preview/wann") return <div className="app-frame"><div className="scroll-area"><div className="mx-auto w-full max-w-2xl pb-6"><PageTitle right={<WannBadge />}>Wann</PageTitle><WannGallery rows={wannRows(Number(params.get("min") ?? 85))} now={Date.now()} /></div></div></div>;
-  if (pathname === "/__preview/backtest") return <div className="app-frame"><div className="scroll-area"><div className="mx-auto w-full max-w-md pb-6"><PageTitle>Admin</PageTitle><div className="px-4"><Backtest initial={params.get("two") === "1" ? [backtest, { ...backtest, expert: "JPY Grid", symbol: "USDJPY", timeframe: "M5", digits: 3, pipSize: 0.01, baseLot: 0.01, trades: 180, buys: 95, sells: 85, wins: 120, losses: 60, winRate: 66.7, totalPips: 2210.5, netProfit: 3120.4, profitFactor: 1.4, maxDrawdownPct: 12.1, firstTrade: "2024-03-04 08:05", lastTrade: "2024-11-29 21:50" }] : [backtest]} /></div></div></div></div>;
+  if (pathname === "/__preview/backtest") return <div className="app-frame"><div className="scroll-area"><div className="mx-auto w-full max-w-md pb-6"><PageTitle>Admin</PageTitle><div className="px-4"><Backtest initial={params.get("two") === "1" ? [backtest, backtestJpy] : [backtest]} /></div></div></div></div>;
   if (pathname === "/__preview/signal-shots") {
     const closed = params.get("state") !== "live";
     const given = (window as unknown as { __J_SHOTS?: { open?: string; close?: string } }).__J_SHOTS;
@@ -70,7 +72,7 @@ export function Preview() {
   if (pathname === "/__preview/wann-call") return <WannCallPreview won={params.get("state") === "won"} />;
   if (pathname === "/__preview/wann-report") return <div className="app-frame"><div className="scroll-area"><div className="mx-auto w-full max-w-md pb-6"><PageTitle>Admin</PageTitle><div className="px-4"><WannReport initial={wonCalls()} /></div></div></div></div>;
   if (pathname === "/__preview/called-it") return <PromoCalledIt calls={wonCalls().slice(0, Number(params.get("n") ?? 1)).reverse()} format={params.get("format") === "story" ? "story" : "post"} inline />;
-  if (pathname === "/__preview/backtest-card") return <PromoBacktest result={backtest} title="J Signal" show={params.get("show") === "cash" ? "cash" : params.get("money") === "1" || params.get("show") === "both" ? "both" : "pips"} format={params.get("format") === "story" ? "story" : "post"} inline />;
+  if (pathname === "/__preview/backtest-card") return <PromoBacktest result={params.get("two") === "1" ? combineBacktests([backtest, backtestJpy]) : backtest} parts={params.get("two") === "1" ? [backtest, backtestJpy] : undefined} title="J Signal" show={params.get("show") === "cash" ? "cash" : params.get("money") === "1" || params.get("show") === "both" ? "both" : "pips"} format={params.get("format") === "story" ? "story" : "post"} inline />;
   const base: Signal = { id: "s1", ea_source_id: null, ea_uid: "1", source_name: "XAU EA", symbol: "XAUUSDm", base_symbol: "XAUUSD", direction: "buy", order_type: state === "pending" ? "buy_stop" : "market",
     entry: 2341.5, sl: 2335, tp: 2355, ea_lot: 0.5, digits: 2, point: 0.01, pip_size: 0.1, tick_size: 0.01, tick_value: 1, contract_size: 100, vol_min: 0.01, vol_step: 0.01, vol_max: 100, account_currency: "USD",
     status: state === "closed" ? "closed" : "live", expires_at: state === "pending" ? null : new Date(Date.now() + 95_000).toISOString(), triggered_at: null, trigger_price: null, closed_at: null, close_price: state === "closed" ? 2355 : null,

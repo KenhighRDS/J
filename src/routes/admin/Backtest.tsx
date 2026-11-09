@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Card, Field, Notice } from "../../components/ui";
-import { PromoBacktest, type BacktestShow } from "../../components/PromoCard";
+import { PromoBacktest, plainSymbol, type BacktestShow } from "../../components/PromoCard";
 import { shareSize, type ShareFormat } from "../../components/ShareCard";
 import { combineBacktests, decodeReportFile, parseBacktest, withPipSize, type BacktestSummary } from "../../lib/backtest";
 import { canDownloadDirectly, downloadDataUrl, renderPng, sharePng } from "../../lib/share";
@@ -24,7 +24,8 @@ export function Backtest({ initial }: { initial?: BacktestSummary[] }) {
   const card = useRef<HTMLDivElement>(null);
   const previewBox = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.3);
-  const result = reports.length ? combineBacktests(reports.map(applyPip)) : null;
+  const parts = reports.map(applyPip);
+  const result = parts.length ? combineBacktests(parts) : null;
   useEffect(() => {
     const el = previewBox.current; if (!el) return;
     const fit = () => setScale(el.clientWidth / shareSize[format].w);
@@ -42,7 +43,7 @@ export function Backtest({ initial }: { initial?: BacktestSummary[] }) {
   };
   const setPip = (i: number, pip: string) => setReports((r) => r.map((x, j) => (j === i ? { ...x, pip } : x)));
   const remove = (i: number) => setReports((r) => r.filter((_, j) => j !== i));
-  const name = `J-backtest-${(result?.symbol ?? "report").replace(/[^A-Za-z0-9]/g, "")}-${format}.png`;
+  const name = `J-backtest-${parts.map((p) => plainSymbol(p.symbol ?? "")).filter(Boolean).join("-").replace(/[^A-Za-z0-9-]/g, "") || "report"}-${format}.png`;
   const go = async (mode: "share" | "download") => {
     if (!card.current) return; setBusy(mode); setMsg(null);
     try {
@@ -104,7 +105,7 @@ export function Backtest({ initial }: { initial?: BacktestSummary[] }) {
             {reports.length > 1 && result.netProfit == null && <p className="mt-2 text-[13px] text-muted">No money total: the reports are in different currencies or one has no net profit figure.</p>}
           </Card>
           <Card className="p-4 space-y-3">
-            <Field label="Title on the card" value={title} onChange={(e) => setTitle(e.target.value)} hint="J Signal by default; use the symbol or EA name if you prefer" />
+            <Field label="Title on the card" value={title} onChange={(e) => setTitle(e.target.value)} hint="J Signal by default. The instruments show on the card under the title." />
             <div>
               <p className="text-[15px]">Headline figure</p>
               <div className="mt-2 flex rounded-[12px] bg-surface-2 p-1">
@@ -118,7 +119,7 @@ export function Backtest({ initial }: { initial?: BacktestSummary[] }) {
           </Card>
           <div ref={previewBox} className="mx-auto w-full max-w-[420px] overflow-hidden rounded-[16px] border border-border" style={{ aspectRatio: `${w} / ${h}` }}>
             <div style={{ width: w, height: h, transform: `scale(${scale})`, transformOrigin: "top left" }}>
-              <PromoBacktest result={result} title={title || "J Signal"} show={show} format={format} inline />
+              <PromoBacktest result={result} parts={parts} title={title || "J Signal"} show={show} format={format} inline />
             </div>
           </div>
           <div className={`grid gap-3 ${canDownloadDirectly ? "grid-cols-2" : "grid-cols-1"}`}>
@@ -126,7 +127,7 @@ export function Backtest({ initial }: { initial?: BacktestSummary[] }) {
             {canDownloadDirectly && <Button type="button" variant="ghost" busy={busy === "download"} onClick={() => go("download")}>Download</Button>}
           </div>
           {msg && <p className="text-[13px] text-muted">{msg}</p>}
-          <PromoBacktest cardRef={card} result={result} title={title || "J Signal"} show={show} format={format} />
+          <PromoBacktest cardRef={card} result={result} parts={parts} title={title || "J Signal"} show={show} format={format} />
         </>
       )}
     </div>
