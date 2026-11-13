@@ -36,6 +36,11 @@ export function StocksList({ profile, preview }: { profile: Profile; preview?: {
   return (
     <div className="mx-auto w-full max-w-md pb-6">
       <PageTitle>Stocks</PageTitle>
+      <Link to="/portfolio" className="focus-ring mx-4 mb-3 flex items-center gap-3 rounded-[16px] border border-chrome-3/50 bg-surface-2 px-4 py-3">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="shrink-0 text-chrome-2"><path d="M11 4a8.5 8.5 0 1 0 9 9h-9z" /><path d="M15 3.6A8.5 8.5 0 0 1 20.4 9H15z" /></svg>
+        <span className="min-w-0 flex-1"><span className="block text-[15px]">My portfolio</span><span className="block truncate text-[13px] text-muted">Your results in money</span></span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="shrink-0 text-muted"><path d="M9 6l6 6-6 6" /></svg>
+      </Link>
       {picks.length === 0 && <Empty title="No stock picks yet" body="J scans the market after each US close. When a stock clears the bar, it lands here with the reasons and the plan." />}
       {open.length > 0 && (
         <section className="space-y-2 px-4">
@@ -135,6 +140,17 @@ export function StockRoute({ profile, preview }: { profile: Profile; preview?: {
     if (error) { setErr(error.message); return; }
     if (data) setPos(data as StockPosition);
     setSheet(null);
+  };
+  // "I bought it" asks nothing: it records the member's default amount at the latest price; both can be edited after
+  const defaultAmount = profile.default_amount ?? 100;
+  const buyNow = async () => {
+    setErr(null);
+    if (preview) { setPos({ id: "new", user_id: profile.id, pick_id: k.id, amount_usd: defaultAmount, buy_price: now, bought_at: new Date().toISOString(), sell_price: null, sold_at: null }); return; }
+    setBusy(true);
+    const { data, error } = await supabase.rpc("stock_take", { p_pick: k.id });
+    setBusy(false);
+    if (error) { setErr(error.message); return; }
+    setPos(data as StockPosition);
   };
   const act = async (fn: "stock_untake" | "stock_sell", args: Record<string, unknown>) => {
     if (preview) return;
@@ -257,8 +273,9 @@ export function StockRoute({ profile, preview }: { profile: Profile; preview?: {
           </div>
         ) : (
           <>
-            <p className="mb-3 text-[15px] leading-snug text-muted">{closed ? "This pick has closed. If you did buy it, you can still add it to your portfolio." : "Bought it? Tell J how much you put in and it tracks what it's worth in your portfolio."}</p>
-            <Button full type="button" onClick={() => openSheet("buy")}>I bought it</Button>
+            <p className="mb-3 text-[15px] leading-snug text-muted">{closed ? "This pick has closed. If you did buy it, you can still add it to your portfolio." : "Bought it? One tap adds it to your portfolio."} It goes in at {money(defaultAmount, false)}, your default amount, and the latest price. You can change both after.</p>
+            <Button full type="button" busy={busy && sheet == null} onClick={() => { void buyNow(); }}>I bought it</Button>
+            {err && sheet == null && <p className="mt-2 text-[13px] text-sell">{err}</p>}
           </>
         )}
       </Section>

@@ -164,5 +164,36 @@ do $$ declare inv uuid; begin
   perform public.admin_set_data_key('finnhub_key', null) from (select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true)) x;
   assert public.data_key('finnhub_key') is null, 'an empty value removes the key';
 end $$;
+
+-- ---------- default amount: Wann stake and stock amount without asking ----------
+reset role;
+insert into public.wann_calls (id, wann_game_id, sport, competition, home, away, kickoff_utc, pick, pick_label, probability, call_type)
+values ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 9001, 'Football', 'Liga', 'A', 'B', now() + interval '1 day', 'home', 'A wins', 91, 'straight'),
+       ('ffffffff-ffff-ffff-ffff-ffffffffffff', 9002, 'Football', 'Liga', 'C', 'D', now() + interval '1 day', 'home', 'C wins', 90, 'straight');
+insert into public.receipts (kind, wann_call_id, user_id) values ('wann', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', '22222222-2222-2222-2222-222222222222'), ('wann', 'ffffffff-ffff-ffff-ffff-ffffffffffff', '22222222-2222-2222-2222-222222222222');
+set role authenticated; set request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+do $$ declare r public.receipts; p public.stock_positions; pr public.profiles; begin
+  assert (select default_amount from public.profiles where id = '22222222-2222-2222-2222-222222222222') = 100, 'default amount starts at 100';
+  r := public.receipt_take(p_call => 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee');
+  assert r.status = 'taken' and r.stake_usd = 100, 'taking a Wann call stakes the default amount';
+  p := public.stock_take('cccccccc-cccc-cccc-cccc-cccccccccccc');
+  assert p.amount_usd = 100 and p.buy_price = 110, 'I bought it without an amount uses the default at the latest price';
+  pr := public.profile_set_default_amount(250.005);
+  assert pr.default_amount = 250.01, 'default amount saved';
+  r := public.receipt_set_money(p_call => 'ffffffff-ffff-ffff-ffff-ffffffffffff', p_stake => 40);
+  r := public.receipt_answer(true, p_call => 'ffffffff-ffff-ffff-ffff-ffffffffffff');
+  assert r.status = 'taken' and r.stake_usd = 40, 'an amount the member entered is kept';
+  assert (select stake_usd from public.receipts where wann_call_id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee' and user_id = '22222222-2222-2222-2222-222222222222') = 100, 'changing the default does not rewrite calls already taken';
+  p := public.stock_take('cccccccc-cccc-cccc-cccc-cccccccccccc');
+  assert p.amount_usd = 250.01, 'the new default applies from now on';
+  begin perform public.profile_set_default_amount(0); raise exception 'zero default accepted'; exception when sqlstate 'P0001' then null; end;
+  perform public.stock_untake('cccccccc-cccc-cccc-cccc-cccccccccccc');
+end $$;
+reset role;
+do $$ begin
+  -- an EA receipt is never given a stake
+  update public.receipts set status = 'taken' where kind = 'ea' and user_id = '22222222-2222-2222-2222-222222222222';
+  assert not exists (select 1 from public.receipts where kind = 'ea' and stake_usd is not null), 'J trades get no stake';
+end $$;
 rollback;
 select 'ALL ASSERTIONS PASSED' as result;

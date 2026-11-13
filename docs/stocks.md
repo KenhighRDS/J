@@ -65,11 +65,17 @@ Filings come out up to 45 days after the quarter ends, and the page says so.
 
 ## Portfolio
 
-- **Stocks:** "I bought it" asks how much went in and the price paid. Value follows the latest price; "I sold it"
-  fixes the result.
+Opened from the Stocks page ("My portfolio"). Nothing asks for an amount: each member has one **default amount**
+(100 to start, changed in Settings) that J records for them.
+
+- **Stocks:** "I bought it" records the default amount at the latest price in one tap. Both can be edited. Value follows
+  the latest price; "I sold it" fixes the result.
 - **J trades:** money comes from the member's own figure, else their linked MT5 account, else their lot times the pips.
-- **Wann calls:** after "I took it" the app asks what was paid and what it pays if it wins. Lost = minus the stake,
-  won = payout minus stake.
+- **Wann calls:** a call the member takes is staked at their default amount. Lost = minus the stake. Won = payout minus
+  stake once they enter what it paid; until then the win is estimated as if they paid Wann's probability (a 90% call
+  pays about 11 on 100) and marked "estimated".
+
+Changing the default applies from then on; calls and stocks already recorded keep their amount.
 
 ## Data sources
 

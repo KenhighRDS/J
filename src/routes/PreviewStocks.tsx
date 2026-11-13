@@ -1,11 +1,12 @@
 // Dev-only fixtures for the stock and portfolio screens:
 //   /__preview/stocks   /__preview/stock?state=swing|ipo|long|closed&pos=1|sold   /__preview/portfolio?empty=1   /__preview/shell (tab bar)
-//   /__preview/admin-stocks
+//   /__preview/admin-stocks   /__preview/settings
 import { Route, Routes } from "react-router-dom";
 import { Shell } from "../components/Shell";
 import { StockRoute, StocksList } from "./Stocks";
 import { Portfolio, type PortfolioData } from "./Portfolio";
 import { AdminStocks } from "./admin/Stocks";
+import { Settings } from "./Settings";
 import { PageTitle } from "../components/ui";
 import type { Profile, Receipt, Signal, StockPick, StockPosition, WannCall } from "../lib/types";
 
@@ -66,8 +67,9 @@ const portfolio: PortfolioData = {
 };
 const frame = (child: React.ReactNode) => <div className="app-frame"><div className="scroll-area">{child}</div></div>;
 
-export function isStocksPreview(pathname: string): boolean { return /^\/__preview\/(stocks|stock|portfolio|shell|admin-stocks)$/.test(pathname); }
+export function isStocksPreview(pathname: string): boolean { return /^\/__preview\/(stocks|stock|portfolio|shell|admin-stocks|settings)$/.test(pathname); }
 export function StocksPreview({ pathname, params }: { pathname: string; params: URLSearchParams }) {
+  if (pathname === "/__preview/settings") return <Routes><Route path="/__preview/settings" element={<Shell profile={profile} />}><Route index element={<Settings profile={{ ...profile, default_amount: 100 }} reload={async () => undefined} />} /></Route></Routes>;
   if (pathname === "/__preview/shell") return <Routes><Route path="/__preview/shell" element={<Shell profile={profile} />}><Route index element={<StocksList profile={profile} preview={{ picks, positions }} />} /></Route></Routes>;
   if (pathname === "/__preview/admin-stocks") return frame(<div className="mx-auto w-full max-w-md pb-6"><PageTitle>Admin</PageTitle><div className="px-4"><AdminStocks preview={{
     keys: { finnhub_key: true, massive_key: false, sec_contact: "owner@example.com" },

@@ -4,6 +4,7 @@ export interface Profile {
   id: string; email: string; name: string | null; role: Role; status: ProfileStatus;
   balance: number | null; balance_currency: string | null; risk_pct: number; balance_source: "manual" | "tracker";
   last_seen: string | null; created_at: string;
+  default_amount?: number;   // what a Wann stake or a stock buy is recorded at unless the member changes it (100 to start)
 }
 export type Direction = "buy" | "sell";
 export type OrderType = "market" | "buy_stop" | "sell_stop" | "buy_limit" | "sell_limit";

@@ -57,9 +57,10 @@ export function Portfolio({ profile, preview }: { profile: Profile; preview?: Po
 
   return (
     <div className="mx-auto w-full max-w-md pb-6">
+      <header className="flex h-12 items-center px-4"><Link to="/stocks" className="focus-ring -ml-2 flex h-11 items-center gap-1 px-2 text-[15px] text-muted"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M15 5l-7 7 7 7" /></svg>Stocks</Link></header>
       <PageTitle>Portfolio</PageTitle>
       {lines.length === 0 ? (
-        <Empty title="Nothing in your portfolio yet" body="Take a signal, a Wann call or a stock pick and tell J what you put on it. It shows here with what it made." action={<Link to="/stocks" className="focus-ring inline-flex h-12 items-center rounded-[14px] border border-border px-5 text-[15px]">See stock picks</Link>} />
+        <Empty title="Nothing in your portfolio yet" body="Take a signal, a Wann call or a stock pick and it shows here with what it made." action={<Link to="/stocks" className="focus-ring inline-flex h-12 items-center rounded-[14px] border border-border px-5 text-[15px]">See stock picks</Link>} />
       ) : (
         <>
           <section className="px-5">
@@ -96,14 +97,14 @@ export function Portfolio({ profile, preview }: { profile: Profile; preview?: Po
                     ) : (
                       <button type="button" disabled={!receipts[l.key]} onClick={() => receipts[l.key] && setEdit(receipts[l.key])} className="focus-ring shrink-0 text-right" aria-label={receipts[l.key] ? `Edit ${l.title}` : undefined}>
                         <span className={`block tabular text-[15px] ${l.pnl == null ? "text-muted" : tone(l.pnl)} ${l.pnl == null && l.putIn == null ? "" : "font-mono"}`}>{l.pnl == null ? (l.putIn != null ? money(l.putIn, false) : "Open") : money(l.pnl)}</span>
-                        <span className="block text-[12px] text-muted">{l.estimated ? "from your lot" : l.pct != null ? pct(l.pct) : l.pnl == null && l.putIn != null ? "in play" : ""}</span>
+                        <span className="block text-[12px] text-muted">{l.estimated ? (l.kind === "wann" ? "estimated" : "from your lot") : l.pct != null ? pct(l.pct) : l.pnl == null && l.putIn != null ? "in play" : ""}</span>
                       </button>
                     )}
                   </li>
                 ))}
               </ul>
             )}
-            <p className="mt-3 px-1 text-[13px] leading-snug text-muted">Stocks use the latest price J has. J trades use your linked MT5 account when there is one, otherwise your lot and the pips. Tap a figure to correct it.</p>
+            <p className="mt-3 px-1 text-[13px] leading-snug text-muted">Stocks use the latest price J has. J trades use your linked MT5 account when there is one, otherwise your lot and the pips. Wann calls count your default amount; a win is estimated from Wann's probability until you enter what it paid. Tap a figure to correct it.</p>
           </section>
         </>
       )}

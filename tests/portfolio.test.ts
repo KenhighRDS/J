@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { eaLine, money, moneyFromPips, pct, pickMovePct, stockLine, totals, wannLine } from "../src/lib/portfolio.ts";
+import { eaLine, estimatedWin, money, moneyFromPips, pct, pickMovePct, stockLine, totals, wannLine } from "../src/lib/portfolio.ts";
 import type { Receipt, Signal, StockPick, StockPosition, WannCall } from "../src/lib/types.ts";
 
 const pick = (o: Partial<StockPick> = {}): StockPick => ({ id: "k1", symbol: "ACME", name: "Acme Corp", exchange: "NASDAQ", industry: "Software", logo_url: null, website: null, kind: "catalyst", horizon: "swing",
@@ -43,11 +43,13 @@ test("ea: no lot or no tick data means no money figure, and it says what is miss
   const running = eaLine(rec(), sig({ status: "triggered", closed_at: null, result_pips: null }));
   assert.deepEqual([running.open, running.pnl, running.needs], [true, null, null]);
 });
-test("wann: lost = minus the stake, won = payout minus stake, void = nothing, no stake = ask", () => {
+test("wann: lost = minus the stake, won = payout minus stake (estimated from the probability until entered), void = nothing", () => {
   assert.equal(wannLine(rec({ kind: "wann", stake_usd: 50, payout_usd: 58 }), call()).pnl, 8);
   assert.equal(wannLine(rec({ kind: "wann", stake_usd: 50 }), call({ outcome: "lost" })).pnl, -50);
   assert.equal(wannLine(rec({ kind: "wann", stake_usd: 50 }), call({ outcome: "void" })).pnl, 0);
-  assert.equal(wannLine(rec({ kind: "wann", stake_usd: 50 }), call()).needs, "payout");
+  const est = wannLine(rec({ kind: "wann", stake_usd: 100 }), call({ probability: 90 }));           // won, no payout entered yet
+  assert.deepEqual([est.pnl, est.estimated, est.needs], [11.11, true, null]);
+  assert.deepEqual([estimatedWin(100, 80), estimatedWin(100, 100), estimatedWin(100, 0)], [25, null, null]);
   assert.equal(wannLine(rec({ kind: "wann" }), call()).needs, "amount");
   const live = wannLine(rec({ kind: "wann", stake_usd: 50, payout_usd: 58 }), call({ status: "live", outcome: null, final_score: null }));
   assert.deepEqual([live.open, live.putIn, live.value, live.pnl], [true, 50, 50, null]);
