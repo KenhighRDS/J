@@ -59,6 +59,7 @@ test("catalyst score: a strong beat near the high scores well; the filters say w
   assert.match(why({}, { marketCapitalization: 200 }) ?? "", /too small/);
   assert.match(why({}, { exchange: "OTC MARKETS" }) ?? "", /NYSE or Nasdaq/);
   assert.match(score({ symbol: "NEWC", source: "ipo", ipoDate: "2026-09-01", ipoPrice: 40, raised: 1e9 }, quote(), {}, metric(), today).reject ?? "", /too small/);   // a listing with no profile yet fails on size, not on exchange
+  assert.match(score({ symbol: "SKHY", source: "ipo", ipoDate: "2026-07-10", ipoPrice: 149, raised: 27e9 }, quote(), profile({ exchange: "KOREA EXCHANGE (STOCK MARKET)" }), metric(), today).reject ?? "", /NYSE or Nasdaq/);   // a profile for the home listing abroad
   assert.match(why({}, {}, { "3MonthAverageTradingVolume": 0.01 }) ?? "", /thinly traded/);
   assert.match(why({}, {}, {}, false) ?? "", /Did not trade today/);
   const weak = score({ ...seed, epsSurprise: 6, revSurprise: null, epsActual: -0.1 }, quote({ c: 103, dp: 2.2, h: 104, l: 101 }), profile({ marketCapitalization: 900 }), metric({ "52WeekHigh": 160, "13WeekPriceReturnDaily": -10, "26WeekPriceReturnDaily": -20, revenueGrowthTTMYoy: 2 }), today);

@@ -123,7 +123,9 @@ export function score(seed: Seed, q: Quote, p: Profile2, m: Metric, today: strin
   if (!(d.price > 0)) return no("No price");
   if (!tradedToday) return no("Did not trade today");
   if (d.price < RULES.minPrice) return no(`Price under $${RULES.minPrice}`);
-  if (!usExchange(p) && seed.source !== "ipo") return no("Not listed on NYSE or Nasdaq");   // listings were already filtered by the calendar's exchange
+  // a new listing with no provider profile yet was already filtered by the calendar's exchange; a profile that names
+  // another exchange (a foreign company's home listing) means the numbers are not for the US shares
+  if (!usExchange(p) && !(seed.source === "ipo" && !p.exchange)) return no("Not listed on NYSE or Nasdaq");
   const parts: Record<string, number> = {};
   if (seed.source === "earnings") {
     if (d.capUsd == null || d.capUsd < RULES.catalystMinCapUsd) return no("Company too small (under $500M)");
