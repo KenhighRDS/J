@@ -42,3 +42,19 @@ The skills that guided it are in `.claude/skills/remotion-motion-graphics` and `
 - `npm run shots:wann` recaptures the real Wann screens from the app's dev previews (`/__preview/wann?min=90`, `/__preview/wann-call`) into `public/ui/wann/`.
 - The Kalshi screens are recreated in `src/wann/Kalshi.tsx` without Kalshi artwork; prices, fees and payout follow Kalshi's rules ($1 per winning contract) but the layout is an approximation.
 - Render: `npm run render:wann` → `out/j-wann.mp4`.
+
+## Stocks video with RDS Academy (`JStocks`)
+
+90 seconds, vertical, no voice and no music: the stock picks feature, presented as RDS Academy × J and ending on
+"Invite only. Ask RDS Academy for your invite."
+
+- **Look:** cool market paper, navy ink, the RDS logo's own yellow and red candles as the motif (they open the video,
+  drift along the bottom as a faint chart, and wipe between scenes). Headlines in Fraunces, figures in the app's mono.
+- **Logo:** `python3 scripts/prep-rds-logo.py <source.png>` cuts the white background out of the RDS artwork and
+  writes `public/rds-logo.png`.
+- **Sound:** `npm run audio:rds` writes the quiet effect kit to `public/sfx-rds/`.
+- **Render:** `npm run render:rds` → `out/j-stocks-rds.mp4`. `node scripts/stills.mjs JStocks <dir> <frames…>` renders
+  single frames for a check.
+- **What is on screen is real:** the example pick is the one the live scan built on 13 Nov 2026 (Wolverine World
+  Wide), and the Buffett figures are Berkshire Hathaway's 30 June 2026 filing. The two past calls (Coca-Cola 2024,
+  Apple 2024) are RDS Academy's own statement and carry no performance figures. Do not add calls that were not made.
