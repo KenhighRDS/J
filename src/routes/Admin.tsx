@@ -9,6 +9,7 @@ import { AdminSettings } from "./admin/AdminSettings";
 import { AdminReports } from "./admin/AdminReports";
 import { Backtest } from "./admin/Backtest";
 import { WannReport } from "./admin/WannReport";
+import { AdminStocks } from "./admin/Stocks";
 import type { Profile } from "../lib/types";
 
 export function Admin({ me }: { me: Profile }) {
@@ -24,6 +25,7 @@ export function Admin({ me }: { me: Profile }) {
         <Route path="reports" element={<AdminReports />} />
         <Route path="backtest" element={<Backtest />} />
         <Route path="wann" element={<WannReport />} />
+        <Route path="stocks" element={<AdminStocks />} />
       </Route>
     </Routes>
   );

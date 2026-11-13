@@ -26,6 +26,7 @@ export interface Receipt {
   delivered_at: string | null; opened_at: string | null; copied: Record<string, string>;
   status: ReceiptStatus; status_source: ReceiptSource; user_lot: number | null; ring_count: number;
   question_sent_at: string | null; answered_at: string | null; user_entry: number | null; user_close: number | null; user_pips: number | null;
+  stake_usd?: number | null; payout_usd?: number | null; profit_usd?: number | null;   // portfolio: Wann stake / payout if it wins, the member's own EA result
 }
 export interface SignalEvent { id: number; signal_id: string; type: string; payload: Record<string, unknown>; created_at: string }
 export interface Device { id: string; user_id: string; platform: "android" | "web"; fcm_token: string; app_version: string | null; last_seen: string; created_at: string }
@@ -48,3 +49,16 @@ export interface ReportData {
   user?: { name: string | null; received: number; taken: number; likely: number; missed: number; skipped: number; wins: number; losses: number; pips: number; tracker: boolean };
   wann?: { called: number; won: number; lost: number; hit_rate: number; taken: number; missed: number } | null;
 }
+export interface StockReason { label: string; detail: string }
+export interface StockFact { label: string; value: string }
+export interface StockInvestor { name: string; firm: string; value_usd: number; shares: number | null; pct: number | null; period: string | null }
+export interface StockPick {
+  id: string; symbol: string; name: string; exchange: string | null; industry: string | null; logo_url: string | null; website: string | null;
+  kind: "ipo" | "catalyst"; horizon: "swing" | "long"; headline: string; description: string | null;
+  reasons: StockReason[]; risks: string[]; facts: StockFact[]; investors: StockInvestor[]; score: number;
+  entry_price: number; buy_below: number | null; stop_price: number | null; target_price: number | null;
+  status: "open" | "closed"; close_reason: "target" | "stop" | "time" | "manual" | null; close_price: number | null; result_pct: number | null;
+  last_price: number | null; last_price_at: string | null; expires_at: string | null; is_test: boolean;
+  sent_at: string | null; closed_at: string | null; created_at: string;
+}
+export interface StockPosition { id: string; user_id: string; pick_id: string; amount_usd: number; buy_price: number; bought_at: string; sell_price: number | null; sold_at: string | null }

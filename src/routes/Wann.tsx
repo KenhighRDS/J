@@ -9,6 +9,7 @@ import { Button, Empty, PageTitle, Sheet, Spinner } from "../components/ui";
 import { useRealtime } from "../hooks/useRealtime";
 import { hasNativeAlerts, JAlert } from "../lib/native";
 import { PromoShare, ShareIconButton } from "../components/PromoShare";
+import { MoneySheet } from "../components/MoneySheet";
 
 export function WannList({ profile }: { profile: Profile }) {
   const [rows, setRows] = useState<WannRow[] | null>(null);
@@ -33,6 +34,7 @@ export function WannRoute({ profile }: { profile: Profile }) {
   const [missing, setMissing] = useState(false);
   const ask = useAskPrompt(receipt, params, setParams);
   const [shareOpen, setShareOpen] = useState(false);
+  const [moneyOpen, setMoneyOpen] = useState(false);
   const load = useCallback(async () => {
     const [{ data: c }, { data: r }] = await Promise.all([supabase.from("wann_calls").select("*").eq("id", id).maybeSingle(), supabase.from("receipts").select("*").eq("wann_call_id", id).eq("user_id", profile.id).maybeSingle()]);
     if (!c) { setMissing(true); return; }
@@ -45,8 +47,9 @@ export function WannRoute({ profile }: { profile: Profile }) {
   const rpc = async (fn: string, args: Record<string, unknown> = {}) => { const { data } = await supabase.rpc(fn, { p_call: id, ...args }); if (data) setReceipt(data as Receipt); };
   return (
     <>
-      <WannCard call={call} receipt={receipt} onCopy={(f) => { setReceipt({ ...receipt, copied: { ...receipt.copied, [f]: "x" } }); void rpc("receipt_copy", { p_field: f }); }} onTake={() => { void rpc("receipt_take"); }} onSkip={() => { void rpc("receipt_skip"); }} onClose={() => nav("/wann")} adminActions={profile.role === "admin" ? <ShareIconButton onClick={() => setShareOpen(true)} /> : undefined} />
+      <WannCard call={call} receipt={receipt} onCopy={(f) => { setReceipt({ ...receipt, copied: { ...receipt.copied, [f]: "x" } }); void rpc("receipt_copy", { p_field: f }); }} onTake={() => { void rpc("receipt_take").then(() => setMoneyOpen(true)); }} onSkip={() => { void rpc("receipt_skip"); }} onClose={() => nav("/wann")} adminActions={profile.role === "admin" ? <ShareIconButton onClick={() => setShareOpen(true)} /> : undefined} />
       {profile.role === "admin" && <PromoShare subject={{ kind: "wann", call }} open={shareOpen} onClose={() => setShareOpen(false)} />}
+      <MoneySheet open={moneyOpen} onClose={() => setMoneyOpen(false)} kind="wann" receipt={receipt} title="How much did you put on it?" onSaved={setReceipt} skippable />
       <Sheet open={ask.open} onClose={ask.settle} title="Did you catch it?">
         <p className="text-[15px] text-muted">{call.home} {call.final_score ?? ""} {call.away} — {call.outcome === "won" ? "won" : "lost"}. Did you take this call?</p>
         <div className="mt-4 grid grid-cols-2 gap-3"><Button type="button" onClick={() => { void rpc("receipt_answer", { p_yes: true }); ask.settle(); }}>Yes, I took it</Button><Button variant="ghost" type="button" onClick={() => { void rpc("receipt_answer", { p_yes: false }); ask.settle(); }}>No</Button></div>

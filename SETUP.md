@@ -52,6 +52,13 @@ Done: all environment variables (`VITE_SUPABASE_*`, `VITE_FIREBASE_*`, `VITE_SIT
 - `J_FEED_KEY` is already set on J (wann lives under a different Supabase login). Paste the same value, which you received as a file, into wann → Edge Functions → Secrets → `J_FEED_KEY`.
 - Check: J → Admin → Settings → **Sync now** shows the next 85%+ games.
 
+## 7c. Stock picks
+Full description: `docs/stocks.md`.
+1. Admin → **Stocks**: paste a free Finnhub key (finnhub.io → Get free API key). Optional: a free Massive key (massive.com) for company descriptions and smarter stops.
+2. Enter a contact email for SEC filings (the SEC requires one from every app that reads them; it goes only to the SEC).
+3. **Check keys**, then **Preview the scan** (sends nothing) and **Send a test pick** (admins only).
+4. Leave **Send picks automatically** on. Scans run after each US close; open picks are re-priced every 15 minutes of the session.
+
 ## 8. Go-live check
 Invite a second email of yours, install on both phones, send a test from Admin, then a real one from an EA on a demo account, and run the acceptance checklist below.
 

@@ -99,5 +99,70 @@ do $$ begin
   perform public.receipts_resolve('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
   assert (select status from public.receipts where signal_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' and user_id = '22222222-2222-2222-2222-222222222222') = 'likely_taken', 'no-TP copy heuristic';
 end $$;
+
+-- ---------- stocks + portfolio ----------
+reset role;
+insert into public.stock_picks (id, symbol, name, kind, horizon, headline, score, entry_price, buy_below, stop_price, target_price, last_price, sent_at)
+values ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'ACME', 'Acme Corp', 'catalyst', 'swing', 'Beat earnings', 84, 100, 103, 92, 116, 110, now());
+insert into public.stock_picks (id, symbol, name, kind, horizon, headline, score, entry_price, last_price, sent_at, is_test)
+values ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'TEST', 'Test Corp', 'catalyst', 'long', 'Test pick', 50, 10, 10, now(), true);
+do $$ begin
+  -- one open pick per symbol (test picks aside)
+  begin
+    insert into public.stock_picks (symbol, name, kind, horizon, headline, score, entry_price, sent_at) values ('ACME', 'Acme Corp', 'ipo', 'swing', 'again', 70, 101, now());
+    raise exception 'a second open ACME pick was accepted';
+  exception when unique_violation then null; end;
+end $$;
+set role authenticated; set request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+do $$ declare p public.stock_positions; r public.receipts; begin
+  assert (select count(*) from public.stock_picks) = 1, 'member sees the sent pick but not the test pick';
+  p := public.stock_take('cccccccc-cccc-cccc-cccc-cccccccccccc', 500);
+  assert p.amount_usd = 500 and p.buy_price = 110, 'take: price defaults to the latest price';
+  p := public.stock_take('cccccccc-cccc-cccc-cccc-cccccccccccc', 750.555, 108);
+  assert p.amount_usd = 750.56 and p.buy_price = 108 and (select count(*) from public.stock_positions) = 1, 'take again edits the one row';
+  p := public.stock_sell('cccccccc-cccc-cccc-cccc-cccccccccccc');
+  assert p.sell_price = 110 and p.sold_at is not null, 'sell: price defaults to the latest price';
+  p := public.stock_sell('cccccccc-cccc-cccc-cccc-cccccccccccc', null, true);
+  assert p.sell_price is null and p.sold_at is null, 'undo the sale';
+  begin perform public.stock_take('cccccccc-cccc-cccc-cccc-cccccccccccc', 0); raise exception 'zero amount accepted'; exception when sqlstate 'P0001' then null; end;
+  begin perform public.stock_take('dddddddd-dddd-dddd-dddd-dddddddddddd', 100); raise exception 'member took a test pick'; exception when sqlstate 'P0002' then null; end;
+  begin perform public.admin_set_data_key('finnhub_key', 'x'); raise exception 'member set a data key'; exception when insufficient_privilege then null; end;
+  begin perform public.data_key('finnhub_key'); raise exception 'member read a data key'; exception when insufficient_privilege then null; end;
+  -- money on a receipt the member holds (the EA signal from above)
+  r := public.receipt_set_money(p_signal => 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', p_lot => 0.25, p_profit => -12.345);
+  assert r.user_lot = 0.25 and r.profit_usd = -12.35, 'lot and own result saved';
+  r := public.receipt_set_money(p_signal => 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', p_clear => true);
+  assert r.profit_usd is null and r.user_lot = 0.25, 'clear wipes money, keeps the lot';
+  begin perform public.receipt_set_money(p_signal => 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', p_stake => -5); raise exception 'negative stake accepted'; exception when sqlstate 'P0001' then null; end;
+  perform public.stock_untake('cccccccc-cccc-cccc-cccc-cccccccccccc');
+  assert (select count(*) from public.stock_positions) = 0, 'untake removes the position';
+end $$;
+set request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
+do $$ begin
+  begin perform public.stock_sell('cccccccc-cccc-cccc-cccc-cccccccccccc'); raise exception 'sold a position that is not there'; exception when sqlstate 'P0002' then null; end;
+end $$;
+set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+do $$ begin
+  assert (select count(*) from public.stock_picks) = 2, 'admin sees the test pick too';
+  perform public.admin_set_data_key('finnhub_key', '  abc123  ');
+  perform public.admin_set_data_key('sec_contact', 'owner@example.com');
+  assert public.admin_data_keys() = '{"finnhub_key": true, "massive_key": false, "sec_contact": "owner@example.com"}'::jsonb, 'keys: set or not, never the value';
+  begin perform public.admin_set_data_key('cron_key', 'x'); raise exception 'unknown key accepted'; exception when sqlstate 'P0001' then null; end;
+end $$;
+reset role;
+do $$ declare inv uuid; begin
+  assert public.data_key('finnhub_key') = 'abc123' and public.data_key('cron_key') is null, 'service role reads only the data keys';
+  assert (select count(*) from public.investors) = 17, 'investors seeded';
+  select id into inv from public.investors where cik = 1067983;
+  insert into public.investor_holdings (investor_id, cusip, issuer, value_usd, shares, pct) values (inv, '037833100', 'APPLE INC', 6e10, 3e8, 20), (inv, '02005N100', 'ALLY FINL INC', 7e8, 1.5e7, 0.2);
+  assert (select count(*) from public.stock_unmapped_cusips(10)) = 2, 'two CUSIPs to look up';
+  insert into public.cusip_map (cusip, symbol) values ('037833100', 'AAPL'), ('02005N100', null);
+  assert public.stock_apply_cusip_map() = 1, 'one ticker applied';
+  assert (select symbol from public.investor_holdings where cusip = '037833100') = 'AAPL', 'ticker on the holding';
+  assert (select count(*) from public.stock_unmapped_cusips(10)) = 0, 'a CUSIP with no ticker is not asked for again';
+  assert public.stocks_due_what() in ('', 'scan', 'track', 'investors'), 'due check runs';
+  perform public.admin_set_data_key('finnhub_key', null) from (select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true)) x;
+  assert public.data_key('finnhub_key') is null, 'an empty value removes the key';
+end $$;
 rollback;
 select 'ALL ASSERTIONS PASSED' as result;

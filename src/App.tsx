@@ -15,6 +15,8 @@ import { Home } from "./routes/Home";
 import { SignalRoute } from "./routes/Signal";
 import { Preview } from "./routes/Preview";
 import { WannList, WannRoute } from "./routes/Wann";
+import { StocksList, StockRoute } from "./routes/Stocks";
+import { Portfolio } from "./routes/Portfolio";
 import { Reports } from "./routes/Reports";
 import { ReportRoute } from "./routes/Report";
 import { Settings } from "./routes/Settings";
@@ -62,6 +64,9 @@ export default function App() {
           <Route path="/signal/:id" element={<SignalRoute profile={profile} reloadProfile={reload} />} />
           <Route path="/wann" element={<WannList profile={profile} />} />
           <Route path="/wann/:id" element={<WannRoute profile={profile} />} />
+          <Route path="/stocks" element={<StocksList profile={profile} />} />
+          <Route path="/stocks/:id" element={<StockRoute profile={profile} />} />
+          <Route path="/portfolio" element={<Portfolio profile={profile} />} />
           <Route path="/reports" element={<Reports profile={profile} />} />
           <Route path="/reports/:id" element={<ReportRoute profile={profile} />} />
           <Route path="/settings" element={<Settings profile={profile} reload={reload} />} />

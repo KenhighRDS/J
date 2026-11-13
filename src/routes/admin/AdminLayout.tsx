@@ -6,6 +6,7 @@ const tabs = [
   { to: "/admin/signals", label: "Signals" },
   { to: "/admin/send", label: "Send" },
   { to: "/admin/sources", label: "EA sources" },
+  { to: "/admin/stocks", label: "Stocks" },
   { to: "/admin/push", label: "Push test" },
   { to: "/admin/settings", label: "Settings" },
   { to: "/admin/reports", label: "Reports" },

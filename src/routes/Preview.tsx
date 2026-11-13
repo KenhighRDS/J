@@ -15,6 +15,7 @@ import { PromoCalledIt } from "../components/PromoCalledIt";
 import { PromoSignalShots } from "../components/PromoCard";
 import { combineBacktests, type BacktestSummary } from "../lib/backtest";
 import type { Profile, Receipt, Signal, WannCall } from "../lib/types";
+import { StocksPreview, isStocksPreview } from "./PreviewStocks";
 
 const profile: Profile = { id: "u", email: "wolf@example.com", name: "Wolf", role: "admin", status: "active", balance: 10000, balance_currency: "USD", risk_pct: 1, balance_source: "manual", last_seen: null, created_at: "" };
 
@@ -57,6 +58,7 @@ const backtestJpy: BacktestSummary = { ...backtest, expert: "JPY Grid", symbol: 
 export function Preview() {
   const [params] = useSearchParams(); const { pathname } = useLocation();
   const state = params.get("state") ?? "live";
+  if (isStocksPreview(pathname)) return <StocksPreview pathname={pathname} params={params} />;
   if (pathname === "/__preview/wann") return <div className="app-frame"><div className="scroll-area"><div className="mx-auto w-full max-w-2xl pb-6"><PageTitle right={<WannBadge />}>Wann</PageTitle><WannGallery rows={wannRows(Number(params.get("min") ?? 85))} now={Date.now()} /></div></div></div>;
   if (pathname === "/__preview/backtest") return <div className="app-frame"><div className="scroll-area"><div className="mx-auto w-full max-w-md pb-6"><PageTitle>Admin</PageTitle><div className="px-4"><Backtest initial={params.get("two") === "1" ? [backtest, backtestJpy] : [backtest]} /></div></div></div></div>;
   if (pathname === "/__preview/signal-shots") {
