@@ -20,7 +20,8 @@ how much, what could go wrong, and the member's own position.
 **Candidates**
 - Earnings: reports whose first market reaction is today (before or during today's session, or after yesterday's
   close), EPS at least 5% above the estimate, sales not below the estimate by more than 1%.
-- Listings: priced IPOs on NYSE or Nasdaq that raised at least $75M, not blank-cheque shells, 25 to 365 days old,
+- Listings: priced IPOs on NYSE or Nasdaq that raised at least $75M, not blank-cheque shells (no "Acquisition" names,
+  no $10.00 offers), 25 to 365 days old,
   outside the insider lock-up expiry window (days 160 to 195).
 - Never a stock with an open pick, nor one picked in the last 60 days (earnings) or 90 days (listing).
 
