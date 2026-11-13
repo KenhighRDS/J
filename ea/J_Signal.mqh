@@ -3,8 +3,9 @@
 //| Source of truth for the block embedded in every EA in source/     |
 //| (ea/embed_bridge.py copies it in; the EAs need no include file).  |
 //|                                                                    |
-//| Call J_Init + J_Options in OnInit, J_OnTradeTransaction from      |
-//| OnTradeTransaction and J_OnTimer from OnTimer.                    |
+//| Call J_Init + J_Options (+ J_TestButton) in OnInit,              |
+//| J_OnTradeTransaction from OnTradeTransaction, J_OnTimer from      |
+//| OnTimer, J_OnChartEvent from OnChartEvent, J_Deinit from OnDeinit.|
 //| - Filters by magic number; never blocks trading; queues on failure|
 //| - SL/TP of 0 (MT5's "none") is sent as null                       |
 //| - SL/TP moves are merged: at most one update per position every   |
@@ -14,6 +15,10 @@
 //| - Chart images: at open ("Nou achte la" / "Nou vann la") and at   |
 //|   close ("Nou close la"), drawn on a clean temporary chart zoomed |
 //|   to the trade, sent to J and stored with the signal (live only)  |
+//| - "J TEST" button on the chart: one click sends a whole test      |
+//|   trade to J (open, both images, close a minute later). It goes   |
+//|   to admins only, places no order and needs no ticks, so it works |
+//|   at the weekend with the market closed                           |
 //+------------------------------------------------------------------+
 #ifndef J_SIGNAL_MQH
 #define J_SIGNAL_MQH
@@ -32,6 +37,8 @@ bool     J_shotsOn = true;                // chart images at open and close
 ENUM_TIMEFRAMES J_shotTf = PERIOD_M15;    // timeframe of the open image (close images pick one that fits the trade)
 int      J_shotW = 1200;                  // image size in pixels
 int      J_shotH = 675;                   // 16:9: two stack cleanly on a share card
+int      J_lastCode = 0;                  // HTTP status of the last send (-1 = no connection)
+int      J_lastErr = 0;
 
 // Last levels sent per signal (uid) and updates held back by the rate limit (latest value wins)
 string   J_sUid[];  double J_sOpen[]; double J_sSl[]; double J_sTp[]; datetime J_sAt[];
@@ -46,9 +53,13 @@ void J_Forget(string uid);
 void J_SendUpdate(string uid, string sym, double entry, double sl, double tp, bool be);
 void J_ProcessShots();
 string J_Base(string ev, string uid, string sym);
+void   J_TestTick();
 
 //--- helpers ---------------------------------------------------------
 bool   J_InTester() { return (MQLInfoInteger(MQL_TESTER) || MQLInfoInteger(MQL_OPTIMIZATION)); }
+// Clock for the bridge's own waits (retries, held updates, images). TimeCurrent() stands still while the market is
+// closed, so waits measured with it would never end at the weekend; this one always runs.
+datetime J_Now() { return (datetime)(GetTickCount64() / 1000); }
 string J_Iso(datetime t)
   {
    string s = TimeToString(t, TIME_DATE | TIME_SECONDS);   // 2026.11.04 21:30:00
@@ -113,8 +124,9 @@ bool J_Post(string json, bool fromQueue)
    int timeout = (StringLen(json) > 20000) ? 30000 : 3000;   // images take longer than signals
    ResetLastError();
    int code = WebRequest("POST", J_url, headers, timeout, data, result, resultHeaders);
-   if(code == 200 || code == 201 || code == 202) return true;
    int err = GetLastError();
+   J_lastCode = code; J_lastErr = err;
+   if(code == 200 || code == 201 || code == 202) return true;
    if(code == -1 && err == 4014)
      {
       Print("J: WebRequest blocked (4014). Add this URL in Tools -> Options -> Expert Advisors -> 'Allow WebRequest for listed URL': ", J_url);
@@ -152,8 +164,9 @@ void J_OnTimer()
    if(!J_ready) return;
    J_FlushHeld();
    J_ProcessShots();
-   if(TimeCurrent() - J_lastRetry < J_retryEverySec) return;
-   J_lastRetry = TimeCurrent();
+   J_TestTick();
+   if(J_Now() - J_lastRetry < J_retryEverySec) return;
+   J_lastRetry = J_Now();
    if(!FileIsExist(J_queueFile)) return;
    int h = FileOpen(J_queueFile, FILE_READ | FILE_TXT | FILE_ANSI | FILE_SHARE_READ | FILE_SHARE_WRITE);
    if(h == INVALID_HANDLE) return;
@@ -203,7 +216,7 @@ void J_Remember(string uid, double open, double sl, double tp)
   {
    int i = J_Find(J_sUid, uid);
    if(i < 0) { i = ArraySize(J_sUid); ArrayResize(J_sUid, i + 1); ArrayResize(J_sOpen, i + 1); ArrayResize(J_sSl, i + 1); ArrayResize(J_sTp, i + 1); ArrayResize(J_sAt, i + 1); J_sUid[i] = uid; }
-   J_sOpen[i] = open; J_sSl[i] = sl; J_sTp[i] = tp; J_sAt[i] = TimeCurrent();
+   J_sOpen[i] = open; J_sSl[i] = sl; J_sTp[i] = tp; J_sAt[i] = J_Now();
   }
 void J_DropHeld(int p)
   {
@@ -226,7 +239,7 @@ void J_QueueUpdate(string uid, string sym, double open, double sl, double tp, bo
    int p = J_Find(J_pUid, uid);
    if(i >= 0 && MathAbs(J_sSl[i] - sl) < pt && MathAbs(J_sTp[i] - tp) < pt && MathAbs(J_sOpen[i] - open) < pt) { if(p >= 0) J_DropHeld(p); return; }
    bool be = isPosition && sl > 0 && MathAbs(sl - open) <= SymbolInfoDouble(sym, SYMBOL_POINT) * 1.0001;
-   datetime now = TimeCurrent();
+   datetime now = J_Now();
    if(be || i < 0 || J_updateEverySec <= 0 || now - J_sAt[i] >= J_updateEverySec)
      {
       if(p >= 0) J_DropHeld(p);
@@ -239,7 +252,7 @@ void J_QueueUpdate(string uid, string sym, double open, double sl, double tp, bo
 
 void J_FlushHeld()
   {
-   datetime now = TimeCurrent();
+   datetime now = J_Now();
    for(int p = ArraySize(J_pUid) - 1; p >= 0; p--)
      {
       if(now < J_pDue[p]) continue;
@@ -257,7 +270,7 @@ void J_QueueShot(string uid, string kind, string sym, int dir, datetime t1, doub
    ArrayResize(J_jUid, n + 1); ArrayResize(J_jKind, n + 1); ArrayResize(J_jSym, n + 1); ArrayResize(J_jDir, n + 1); ArrayResize(J_jT1, n + 1); ArrayResize(J_jP1, n + 1);
    ArrayResize(J_jSl, n + 1); ArrayResize(J_jT2, n + 1); ArrayResize(J_jP2, n + 1); ArrayResize(J_jDue, n + 1); ArrayResize(J_jTries, n + 1);
    J_jUid[n] = uid; J_jKind[n] = kind; J_jSym[n] = sym; J_jDir[n] = dir; J_jT1[n] = t1; J_jP1[n] = p1; J_jSl[n] = sl; J_jT2[n] = t2; J_jP2[n] = p2;
-   J_jDue[n] = TimeCurrent() + 3; J_jTries[n] = 0;
+   J_jDue[n] = J_Now() + 3; J_jTries[n] = 0;
   }
 void J_DropShot(int i)
   {
@@ -314,7 +327,9 @@ void J_Line(long id, string name, datetime t1, double p1, datetime t2, double p2
 
 // Draws the trade on a clean temporary chart zoomed to it, saves a PNG and returns it as base64.
 // Open: the lead-up and the entry ("Nou achte la" / "Nou vann la", SL line). Close: entry to exit ("Nou close la", result).
-bool J_TakeShot(string kind, string sym, int dir, datetime t1, double p1, double sl, datetime t2, double p2, string &b64)
+// replay (the test button only): an open image of a moment in the past. The chart then ends at the entry bar, so
+// nothing that came after shows, and the labels sit left of the entry because there is no free margin on the right.
+bool J_TakeShot(string kind, string sym, int dir, datetime t1, double p1, double sl, datetime t2, double p2, bool replay, string &b64)
   {
    bool isClose = (kind == "close");
    datetime tEnd = isClose ? t2 : t1;
@@ -344,13 +359,23 @@ bool J_TakeShot(string kind, string sym, int dir, datetime t1, double p1, double
    int scale = 5;                                                 // bar spacing 2^scale px: the largest that still fits the trade
    while(scale > 0 && (J_shotW - 90) / (1 << scale) < want) scale--;
    ChartSetInteger(id, CHART_SCALE, scale);
-   ChartSetInteger(id, CHART_AUTOSCROLL, true);
-   ChartSetInteger(id, CHART_SHIFT, true);
-   ChartSetDouble(id, CHART_SHIFT_SIZE, 22.0);                   // empty margin on the right: the labels go there, never over candles
+   int back = (replay && !isClose) ? iBarShift(sym, tf, t1, false) : 0;   // bars after the entry bar (a replayed test only)
+   if(back < 0) back = 0;
+   if(back > 0)
+     {
+      ChartSetInteger(id, CHART_AUTOSCROLL, false);
+      ChartSetInteger(id, CHART_SHIFT, false);
+     }
+   else
+     {
+      ChartSetInteger(id, CHART_AUTOSCROLL, true);
+      ChartSetInteger(id, CHART_SHIFT, true);
+      ChartSetDouble(id, CHART_SHIFT_SIZE, 22.0);                // empty margin on the right: the labels go there, never over candles
+     }
    ChartSetInteger(id, CHART_SCALEFIX, true);
    ChartSetDouble(id, CHART_FIXED_MAX, hi + pad);
    ChartSetDouble(id, CHART_FIXED_MIN, lo - pad);
-   ChartNavigate(id, CHART_END, 0);
+   ChartNavigate(id, CHART_END, -back);
 
    color side = (dir > 0) ? C'47,191,113' : C'229,72,77';
    int d = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
@@ -359,7 +384,20 @@ bool J_TakeShot(string kind, string sym, int dir, datetime t1, double p1, double
    ObjectSetInteger(id, "J_in", OBJPROP_WIDTH, 3);
    string inText = dir > 0 ? "Nou achte la" : "Nou vann la";
    double off = (hi - lo) * 0.035;
-   if(!isClose)
+   if(!isClose && back > 0)
+     {
+      double edge = p1;                                           // clear of the candles the label runs under / over
+      for(int i = 0; i < got; i++)
+         if(rates[i].time <= t1 && (long)(t1 - rates[i].time) <= 14 * tfSec) edge = (dir > 0) ? MathMin(edge, rates[i].low) : MathMax(edge, rates[i].high);
+      J_Text(id, "J_in_t", t1, dir > 0 ? edge - off : edge + off, inText + " ", side, 18, dir > 0 ? ANCHOR_RIGHT_UPPER : ANCHOR_RIGHT_LOWER);
+      J_Line(id, "J_in_l", t1 - (datetime)(10 * tfSec), p1, t1, p1, side, STYLE_SOLID, 2);
+      if(sl > 0)
+        {
+         J_Line(id, "J_sl_l", t1 - (datetime)(10 * tfSec), sl, t1, sl, C'229,72,77', STYLE_DOT, 1);
+         J_Text(id, "J_sl_t", t1 - (datetime)(10 * tfSec), sl, "SL " + DoubleToString(sl, d) + " ", C'229,72,77', 10, ANCHOR_RIGHT);
+        }
+     }
+   else if(!isClose)
      {
       J_Text(id, "J_in_t", t1 + (datetime)tfSec, p1, " " + inText, side, 18, ANCHOR_LEFT_LOWER);   // in the right margin, above the entry line
       J_Line(id, "J_in_l", t1, p1, t1 + (datetime)(8 * tfSec), p1, side, STYLE_SOLID, 2);
@@ -397,6 +435,7 @@ bool J_TakeShot(string kind, string sym, int dir, datetime t1, double p1, double
    ObjectSetInteger(id, "J_brand", OBJPROP_COLOR, C'142,142,147');
 
    for(int k = 0; k < 30 && ChartGetInteger(id, CHART_VISIBLE_BARS) <= 0; k++) { ChartRedraw(id); Sleep(100); }
+   if(back > 0) ChartNavigate(id, CHART_END, -back);              // again once the bars are loaded: an empty chart cannot scroll
    ChartRedraw(id);
    Sleep(400);
    string file = "J_shot_" + IntegerToString(id) + ".png";
@@ -427,12 +466,13 @@ bool J_TakeShot(string kind, string sym, int dir, datetime t1, double p1, double
 // One image per timer tick at most (each one blocks the EA for about a second); two tries per image.
 void J_ProcessShots()
   {
-   datetime now = TimeCurrent();
+   datetime now = J_Now();
    for(int i = 0; i < ArraySize(J_jUid); i++)
      {
       if(now < J_jDue[i]) continue;
       string b64 = "";
-      if(J_TakeShot(J_jKind[i], J_jSym[i], J_jDir[i], J_jT1[i], J_jP1[i], J_jSl[i], J_jT2[i], J_jP2[i], b64))
+      bool replay = (StringFind(J_jUid[i], "test-") == 0);
+      if(J_TakeShot(J_jKind[i], J_jSym[i], J_jDir[i], J_jT1[i], J_jP1[i], J_jSl[i], J_jT2[i], J_jP2[i], replay, b64))
         {
          J_Send(J_Base("shot", J_jUid[i], J_jSym[i]) + ",\"kind\":" + J_Str(J_jKind[i]) + ",\"png_base64\":\"" + b64 + "\"}");
          J_DropShot(i);
@@ -480,6 +520,137 @@ void J_SendTest(string sym, string dir, double entry, double sl, double tp, doub
    J_Send(J_Base("open", "test-" + IntegerToString((long)TimeGMT()), sym) + ",\"direction\":" + J_Str(dir) + ",\"order_type\":\"market\""
           + ",\"entry\":" + J_Num(entry, d) + ",\"sl\":" + J_Lvl(sl, d) + ",\"tp\":" + J_Lvl(tp, d) + ",\"ea_lot\":" + J_Num(lots, 2)
           + ",\"expiry_sec\":0,\"test\":true}");
+  }
+
+//--- test button -----------------------------------------------------
+// One click sends a whole test trade to J: the open, the open image, and about a minute later the close and the
+// close image. J shows it to admins only (marked TEST). No order is placed and no tick is needed: the test replays
+// the last J_testBars bars of this chart's symbol, so it works at the weekend with the market closed.
+string   J_testBtn = "J_TEST_BTN";
+string   J_testIdle = "J: SEND TEST SIGNAL";
+color    J_testIdleClr = C'34,34,40';
+string   J_testUid = "";                  // "" = no test running
+string   J_testSym = "";
+int      J_testDir = 0;
+datetime J_testT1 = 0; double J_testP1 = 0; datetime J_testT2 = 0; double J_testP2 = 0; double J_testLot = 0;
+datetime J_testCloseDue = 0;
+datetime J_testLabelDue = 0;
+int      J_testBars = 20;                 // the test trade "opened" this many bars ago and "closes" on the latest bar
+int      J_testCloseSec = 60;             // time to open the signal in J and swipe "I took it" before the close arrives
+
+void J_TestLabel(string text, color bg)
+  {
+   if(ObjectFind(0, J_testBtn) < 0) return;
+   ObjectSetString(0, J_testBtn, OBJPROP_TEXT, text);
+   ObjectSetInteger(0, J_testBtn, OBJPROP_BGCOLOR, bg);
+   ObjectSetInteger(0, J_testBtn, OBJPROP_STATE, false);          // un-press
+   ChartRedraw(0);
+  }
+
+// Call from OnInit. Sits under the 35K button in the top-right corner (a button is anchored by its top-left corner).
+void J_TestButton(bool show)
+  {
+   if(!show || J_InTester()) { ObjectDelete(0, J_testBtn); return; }
+   if(ObjectFind(0, J_testBtn) < 0 && !ObjectCreate(0, J_testBtn, OBJ_BUTTON, 0, 0, 0)) return;
+   ObjectSetInteger(0, J_testBtn, OBJPROP_CORNER, CORNER_RIGHT_UPPER);
+   ObjectSetInteger(0, J_testBtn, OBJPROP_XDISTANCE, 210);
+   ObjectSetInteger(0, J_testBtn, OBJPROP_YDISTANCE, 64);
+   ObjectSetInteger(0, J_testBtn, OBJPROP_XSIZE, 200);
+   ObjectSetInteger(0, J_testBtn, OBJPROP_YSIZE, 28);
+   ObjectSetInteger(0, J_testBtn, OBJPROP_FONTSIZE, 9);
+   ObjectSetString(0, J_testBtn, OBJPROP_FONT, "Arial");
+   ObjectSetInteger(0, J_testBtn, OBJPROP_COLOR, clrWhite);
+   ObjectSetInteger(0, J_testBtn, OBJPROP_BORDER_COLOR, C'191,195,201');
+   ObjectSetInteger(0, J_testBtn, OBJPROP_BACK, false);
+   ObjectSetInteger(0, J_testBtn, OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(0, J_testBtn, OBJPROP_HIDDEN, true);
+   J_TestLabel(J_testIdle, J_testIdleClr);
+  }
+// Call from OnDeinit.
+void J_Deinit() { ObjectDelete(0, J_testBtn); }
+
+// An image taken right now (the test does not wait for the timer); if the chart is not ready it is queued for one more try.
+void J_ShotNow(string uid, string kind, string sym, int dir, datetime t1, double p1, double sl, datetime t2, double p2)
+  {
+   if(!J_shotsOn) return;
+   string b64 = "";
+   if(J_TakeShot(kind, sym, dir, t1, p1, sl, t2, p2, true, b64))
+      J_Send(J_Base("shot", uid, sym) + ",\"kind\":" + J_Str(kind) + ",\"png_base64\":\"" + b64 + "\"}");
+   else J_QueueShot(uid, kind, sym, dir, t1, p1, sl, t2, p2);
+  }
+
+void J_TestStart()
+  {
+   if(J_InTester()) return;
+   if(J_testUid != "") { Print("J test: one is already running, it closes by itself"); J_TestLabel("TEST RUNNING, CLOSES SOON", clrDarkOrange); return; }
+   if(J_key == "")
+     {
+      J_TestLabel("NO J KEY (InpJKey)", clrFireBrick); J_testLabelDue = J_Now() + 6;
+      Print("J test: InpJKey is empty. Paste the key from J -> Admin -> EA sources into the EA inputs.");
+      return;
+     }
+   string sym = _Symbol;
+   MqlRates r[];
+   int got = CopyRates(sym, J_shotTf, 0, J_testBars + 16, r);    // oldest first; no ticks needed
+   if(got < J_testBars + 2)
+     {
+      J_TestLabel("NO CHART DATA YET, TRY AGAIN", clrFireBrick); J_testLabelDue = J_Now() + 6;
+      Print("J test: not enough ", StringSubstr(EnumToString(J_shotTf), 7), " bars for ", sym, " yet (", got, "). Open that chart once so MT5 loads it.");
+      return;
+     }
+   int last = got - 1, inBar = last - J_testBars;
+   double p1 = r[inBar].close, p2 = r[last].close;
+   int dir = (p2 >= p1) ? 1 : -1;                                  // the test follows what price did, so it closes green
+   double range = 0; int cnt = 0;
+   for(int i = (int)MathMax(0, inBar - 13); i <= inBar; i++) { range += r[i].high - r[i].low; cnt++; }
+   double atr = (cnt > 0) ? range / cnt : 0;
+   if(atr <= 0) atr = SymbolInfoDouble(sym, SYMBOL_POINT) * 100;
+   int d = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
+   double sl = NormalizeDouble(p1 - dir * 1.5 * atr, d), tp = NormalizeDouble(p1 + dir * 3.0 * atr, d);
+   double lot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
+   string uid = "test-" + IntegerToString((long)TimeGMT());
+   J_TestLabel("SENDING...", clrDarkOrange);
+   string json = J_Base("open", uid, sym) + ",\"direction\":" + J_Str(dir > 0 ? "buy" : "sell") + ",\"order_type\":\"market\""
+               + ",\"entry\":" + J_Num(p1, d) + ",\"sl\":" + J_Lvl(sl, d) + ",\"tp\":" + J_Lvl(tp, d) + ",\"ea_lot\":" + J_Num(lot, 2)
+               + ",\"expiry_sec\":0,\"test\":true}";
+   J_Post(json, false);
+   if(J_lastCode != 200 && J_lastCode != 201 && J_lastCode != 202)
+     {
+      string why = "FAILED (" + IntegerToString(J_lastCode) + ")";
+      if(J_lastCode == -1 && J_lastErr == 4014) why = "ALLOW THE J URL (SEE EXPERTS)";
+      else if(J_lastCode == -1) why = "NO CONNECTION";
+      else if(J_lastCode == 401 || J_lastCode == 403) why = "KEY REFUSED, CHECK InpJKey";
+      J_TestLabel(why, clrFireBrick); J_testLabelDue = J_Now() + 10;
+      Print("J test: the test signal was not accepted (status ", J_lastCode, ", error ", J_lastErr, "). Nothing was queued.");
+      return;
+     }
+   J_testUid = uid; J_testSym = sym; J_testDir = dir; J_testT1 = r[inBar].time; J_testP1 = p1; J_testT2 = r[last].time; J_testP2 = p2; J_testLot = lot;
+   J_testCloseDue = J_Now() + J_testCloseSec; J_testLabelDue = 0;
+   J_TestLabel("TEST SENT, CLOSES IN ~1 MIN", clrSeaGreen);
+   Print("J test: test signal sent (", sym, " ", dir > 0 ? "BUY" : "SELL", " ", J_Num(p1, d), "). Admins see it in J marked TEST. It closes by itself in about a minute.");
+   J_ShotNow(uid, "open", sym, dir, J_testT1, p1, sl, 0, 0);
+  }
+
+// From J_OnTimer: closes the running test when its minute is up, and puts the button label back.
+void J_TestTick()
+  {
+   datetime now = J_Now();
+   if(J_testLabelDue > 0 && now >= J_testLabelDue) { J_testLabelDue = 0; if(J_testUid == "") J_TestLabel(J_testIdle, J_testIdleClr); }
+   if(J_testUid == "" || now < J_testCloseDue) return;
+   string uid = J_testUid; J_testUid = "";
+   double profit = 0;
+   if(!OrderCalcProfit(J_testDir > 0 ? ORDER_TYPE_BUY : ORDER_TYPE_SELL, J_testSym, J_testLot, J_testP1, J_testP2, profit)) profit = 0;
+   J_SendClose(uid, J_testSym, J_testP2, "manual", profit);
+   J_ShotNow(uid, "close", J_testSym, J_testDir, J_testT1, J_testP1, 0, J_testT2, J_testP2);
+   J_TestLabel("TEST CLOSED, CHECK J", clrSeaGreen); J_testLabelDue = J_Now() + 10;
+   Print("J test: test trade closed and both chart images sent.");
+  }
+
+// Call from OnChartEvent.
+void J_OnChartEvent(const int id, const string &sparam)
+  {
+   if(id != CHARTEVENT_OBJECT_CLICK || sparam != J_testBtn) return;
+   J_TestStart();
   }
 
 // Hook this from OnTradeTransaction. Only this EA's magic number is reported.
