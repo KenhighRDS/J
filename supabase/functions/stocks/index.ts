@@ -108,7 +108,10 @@ async function startScan(sb: SupabaseClient, fh: Finnhub, mv: Massive | null, dr
       await sb.from("stock_scans").insert({ trading_day: today, dry_run: dryRun, stage: "done", stats: { note: "The market did not trade today" }, finished_at: new Date().toISOString() });
       return { skipped: "market closed" };
     }
-    const [earn, ipos] = await Promise.all([fh.earnings(R.addDays(day, -6), day), fh.ipos(R.addDays(day, -R.RULES.ipoMaxDays), R.addDays(day, -R.RULES.ipoMinDays))]);
+    const earn = await fh.earnings(R.addDays(day, -6), day);
+    // the listings calendar returns at most 200 rows a call, so a year is read in four windows
+    const ipos: R.IpoRow[] = []; const span = Math.ceil((R.RULES.ipoMaxDays - R.RULES.ipoMinDays) / 4);
+    for (let k = 0; k < 4; k++) ipos.push(...(await fh.ipos(R.addDays(day, -R.RULES.ipoMaxDays + k * span), R.addDays(day, k === 3 ? -R.RULES.ipoMinDays : -R.RULES.ipoMaxDays + (k + 1) * span - 1))));
     const fromEarnings = R.seedEarnings(earn, day);
     const taken = new Set(fromEarnings.map((s) => s.symbol));
     seeds = [...fromEarnings, ...R.seedIpos(ipos, day).filter((s) => !taken.has(s.symbol))];
@@ -280,7 +283,7 @@ async function testPick(sb: SupabaseClient, fh: Finnhub, mv: Massive | null, sym
   if (!(q.c > 0) || !p.name) fail(404, `No data for ${symbol}`);
   const last = past.find((x) => x.actual != null && x.estimate != null);
   const day = R.nyDate(new Date(q.t * 1000));
-  const seed: R.Seed = { symbol, source: "earnings", epsActual: last?.actual ?? 0, epsEstimate: last?.estimate ?? 0, epsSurprise: Math.round((last?.surprisePercent ?? 0) * 10) / 10, revSurprise: null, reported: last?.period };
+  const seed: R.Seed = { symbol, source: "earnings", epsActual: last?.actual ?? 0, epsEstimate: last?.estimate ?? 0, epsSurprise: Math.round((last?.surprisePercent ?? 0) * 10) / 10, revSurprise: null };
   const d = R.derive(seed, q, p, m, day);
   const cand: CandRow = { id: 0, symbol, source: "earnings", seed, score: 0, detail: { m: d, quote: q, name: p.name, exchange: p.exchange ?? null, industry: p.finnhubIndustry ?? null, logo: p.logo || null, weburl: p.weburl || null } };
   const r = await buildPick(sb, fh, mv, { ...cand, source: "ipo" }, day, null, 0, 0);       // "ipo" skips the 50-day gate; the kind is set back below

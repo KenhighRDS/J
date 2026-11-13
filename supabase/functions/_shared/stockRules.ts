@@ -25,7 +25,7 @@ export interface Derived { price: number; dp: number; rangePos: number | null; c
   ret13: number | null; ret26: number | null; beta: number | null; revGrowth: number | null; netMargin: number | null; roe: number | null; debtEquity: number | null; listedDays: number | null; aboveOffer: number | null }
 
 export const RULES = {
-  seedMaxEarnings: 40, seedMaxIpos: 60,
+  seedMaxEarnings: 150, seedMaxIpos: 120,
   minEpsEstimate: 0.05, minEpsSurprise: 5, maxRevMiss: -1,
   minPrice: 5, catalystMinCapUsd: 500e6, catalystMinDollarVol: 10e6, minReaction: 2, maxReaction: 30, minRangePos: 0.4,
   ipoMinDays: 25, ipoMaxDays: 365, ipoMinRaised: 75e6, ipoMinCapUsd: 300e6, ipoMinDollarVol: 5e6, ipoMinAboveOffer: 5, ipoMaxOffHigh: 8, lockupFrom: 160, lockupTo: 195,
@@ -70,7 +70,8 @@ export function seedEarnings(rows: EarningsRow[], today: string): Seed[] {
     seen.add(r.symbol);
     out.push({ symbol: r.symbol, source: "earnings", epsActual: a, epsEstimate: e, epsSurprise: r1(eps), revSurprise: rev == null ? null : r1(rev), revenueActual: ra, reported: r.date });
   }
-  return out.sort((x, y) => (y.epsSurprise ?? 0) - (x.epsSurprise ?? 0)).slice(0, RULES.seedMaxEarnings);
+  // bigger companies first: when a busy day has more beats than the cap, the ones cut are the smallest, which the filters drop anyway
+  return out.sort((x, y) => (y.revenueActual ?? 0) - (x.revenueActual ?? 0)).slice(0, RULES.seedMaxEarnings);
 }
 /** Priced listings on NYSE / Nasdaq in about the last year, big enough to trade, that are not blank-cheque shells. */
 export function seedIpos(rows: IpoRow[], today: string): Seed[] {
@@ -80,6 +81,7 @@ export function seedIpos(rows: IpoRow[], today: string): Seed[] {
     if ((r.status ?? "").toLowerCase() !== "priced") continue;
     const price = num(r.price), raised = num(r.totalSharesValue);
     if (price == null || price <= 0 || raised == null || raised < RULES.ipoMinRaised) continue;
+    if (price === 10) continue;                                   // a $10.00 offer is the blank-cheque (SPAC) convention, whatever the name says
     if (!/NASDAQ|NYSE|NEW YORK/i.test(r.exchange ?? "")) continue;
     if (/acquisition|blank check|\bspac\b|\bunits?\b|\bwarrants?\b|\brights?\b/i.test(r.name ?? "")) continue;
     const days = daysBetween(r.date, today);
@@ -121,7 +123,7 @@ export function score(seed: Seed, q: Quote, p: Profile2, m: Metric, today: strin
   if (!(d.price > 0)) return no("No price");
   if (!tradedToday) return no("Did not trade today");
   if (d.price < RULES.minPrice) return no(`Price under $${RULES.minPrice}`);
-  if (!usExchange(p)) return no("Not listed on NYSE or Nasdaq");
+  if (!usExchange(p) && seed.source !== "ipo") return no("Not listed on NYSE or Nasdaq");   // listings were already filtered by the calendar's exchange
   const parts: Record<string, number> = {};
   if (seed.source === "earnings") {
     if (d.capUsd == null || d.capUsd < RULES.catalystMinCapUsd) return no("Company too small (under $500M)");

@@ -21,7 +21,7 @@ test("earnings seeds: only reports whose first market reaction is today, with a 
     er({ symbol: "REV", revenueActual: 90e6 }),                                               // sales missed
     er({ symbol: "NOEST", epsEstimate: null }),
     er({ symbol: "BRK.B" }),                                                                  // not a plain ticker
-    er({ symbol: "BIG", epsActual: 2 }),
+    er({ symbol: "BIG", epsActual: 2, revenueActual: 530e6, revenueEstimate: 500e6 }),
   ], today);
   assert.deepEqual(seeds.map((s) => s.symbol), ["BIG", "ACME", "AMC"]);
   assert.deepEqual([seeds[1].epsSurprise, seeds[1].revSurprise], [30, 6]);
@@ -32,6 +32,7 @@ test("ipo seeds: priced, big enough, on a main exchange, not a shell, outside th
   const seeds = seedIpos([
     ipo({}),
     ipo({ symbol: "SPAC", name: "Bright Acquisition Corp" }),
+    ipo({ symbol: "TENU", name: "Thirteen Partners II", price: "10.00" }),   // a $10.00 offer: a shell even without the word in its name
     ipo({ symbol: "EXP", status: "expected", price: "15.00-17.00" }),
     ipo({ symbol: "SMAL", totalSharesValue: 20e6 }),
     ipo({ symbol: "NEW", date: "2026-11-02" }),                 // 8 days old
@@ -57,6 +58,7 @@ test("catalyst score: a strong beat near the high scores well; the filters say w
   assert.match(why({ c: 4, h: 4.1, l: 3.8 }) ?? "", /under \$5/);
   assert.match(why({}, { marketCapitalization: 200 }) ?? "", /too small/);
   assert.match(why({}, { exchange: "OTC MARKETS" }) ?? "", /NYSE or Nasdaq/);
+  assert.match(score({ symbol: "NEWC", source: "ipo", ipoDate: "2026-09-01", ipoPrice: 40, raised: 1e9 }, quote(), {}, metric(), today).reject ?? "", /too small/);   // a listing with no profile yet fails on size, not on exchange
   assert.match(why({}, {}, { "3MonthAverageTradingVolume": 0.01 }) ?? "", /thinly traded/);
   assert.match(why({}, {}, {}, false) ?? "", /Did not trade today/);
   const weak = score({ ...seed, epsSurprise: 6, revSurprise: null, epsActual: -0.1 }, quote({ c: 103, dp: 2.2, h: 104, l: 101 }), profile({ marketCapitalization: 900 }), metric({ "52WeekHigh": 160, "13WeekPriceReturnDaily": -10, "26WeekPriceReturnDaily": -20, revenueGrowthTTMYoy: 2 }), today);
