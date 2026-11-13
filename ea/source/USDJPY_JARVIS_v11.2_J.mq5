@@ -632,12 +632,12 @@ void J_TestStart()
    int last = got - 1, inBar = last - J_testBars;
    double p1 = r[inBar].close, p2 = r[last].close;
    int dir = (p2 >= p1) ? 1 : -1;                                  // the test follows what price did, so it closes green
-   double range = 0; int cnt = 0;
-   for(int i = (int)MathMax(0, inBar - 13); i <= inBar; i++) { range += r[i].high - r[i].low; cnt++; }
-   double atr = (cnt > 0) ? range / cnt : 0;
-   if(atr <= 0) atr = SymbolInfoDouble(sym, SYMBOL_POINT) * 100;
+   double barsRange = 0; int barsCount = 0;                        // names no host EA is likely to use as a global
+   for(int i = (int)MathMax(0, inBar - 13); i <= inBar; i++) { barsRange += r[i].high - r[i].low; barsCount++; }
+   double testAtr = (barsCount > 0) ? barsRange / barsCount : 0;
+   if(testAtr <= 0) testAtr = SymbolInfoDouble(sym, SYMBOL_POINT) * 100;
    int d = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
-   double sl = NormalizeDouble(p1 - dir * 1.5 * atr, d), tp = NormalizeDouble(p1 + dir * 3.0 * atr, d);
+   double sl = NormalizeDouble(p1 - dir * 1.5 * testAtr, d), tp = NormalizeDouble(p1 + dir * 3.0 * testAtr, d);
    double lot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
    string uid = "test-" + IntegerToString((long)TimeGMT());
    J_TestLabel("SENDING...", clrDarkOrange);
