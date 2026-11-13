@@ -187,6 +187,9 @@ do $$ declare r public.receipts; p public.stock_positions; pr public.profiles; b
   p := public.stock_take('cccccccc-cccc-cccc-cccc-cccccccccccc');
   assert p.amount_usd = 250.01, 'the new default applies from now on';
   begin perform public.profile_set_default_amount(0); raise exception 'zero default accepted'; exception when sqlstate 'P0001' then null; end;
+  r := public.receipt_payout_asked('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee');
+  assert r.payout_asked_at is not null and r.payout_usd is null, 'the payout question is remembered as asked';
+  assert (public.receipt_payout_asked('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee')).payout_asked_at = r.payout_asked_at, 'asking is recorded once';
   perform public.stock_untake('cccccccc-cccc-cccc-cccc-cccccccccccc');
 end $$;
 reset role;

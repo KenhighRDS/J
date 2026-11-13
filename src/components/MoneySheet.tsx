@@ -5,7 +5,7 @@ import { parseAmount } from "../lib/stocks";
 import { Button, Field, Sheet } from "./ui";
 
 /** Asks what the member put on a Wann call (what they paid, what it pays if it wins) or used on a J trade (lot, or their real result). */
-export function MoneySheet({ open, onClose, kind, receipt, title, onSaved, skippable }: { open: boolean; onClose: () => void; kind: "wann" | "ea"; receipt: Receipt | null; title: string; onSaved: (r: Receipt) => void; skippable?: boolean }) {
+export function MoneySheet({ open, onClose, kind, receipt, title, onSaved, skippable, won }: { open: boolean; onClose: () => void; kind: "wann" | "ea"; receipt: Receipt | null; title: string; onSaved: (r: Receipt) => void; skippable?: boolean; won?: boolean }) {
   const [a, setA] = useState(""); const [b, setB] = useState("");
   const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
@@ -21,6 +21,7 @@ export function MoneySheet({ open, onClose, kind, receipt, title, onSaved, skipp
     const args: Record<string, unknown> = receipt.kind === "wann" ? { p_call: receipt.wann_call_id } : { p_signal: receipt.signal_id };
     if (kind === "wann") {
       if (x == null || x <= 0) { setErr("Enter what you paid"); return; }
+      if (won && y == null) { setErr("Enter what it paid you"); return; }
       if (y != null && y < x) { setErr("The payout is the full amount you get back if it wins, so it is more than what you paid"); return; }
       args.p_stake = x; if (y != null) args.p_payout = y;
     } else {
@@ -41,8 +42,8 @@ export function MoneySheet({ open, onClose, kind, receipt, title, onSaved, skipp
       <form onSubmit={save} className="space-y-3">
         {kind === "wann" ? (
           <>
-            <Field label="What you paid ($)" inputMode="decimal" autoFocus placeholder="50" value={a} onChange={(e) => setA(e.target.value)} />
-            <Field label="Payout if it wins ($)" inputMode="decimal" placeholder="58" value={b} onChange={(e) => setB(e.target.value)} hint="Kalshi shows both numbers when you place the order. You can add the payout later." error={err} />
+            <Field label="What you paid ($)" inputMode="decimal" autoFocus={!won} placeholder="100" value={a} onChange={(e) => setA(e.target.value)} />
+            <Field label={won ? "What it paid you ($)" : "Payout if it wins ($)"} inputMode="decimal" autoFocus={won} placeholder="112" value={b} onChange={(e) => setB(e.target.value)} hint={won ? "The total Kalshi paid out for this call, your stake included." : "Kalshi shows both numbers when you place the order. You can add the payout later."} error={err} />
           </>
         ) : (
           <>

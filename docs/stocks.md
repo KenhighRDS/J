@@ -72,8 +72,8 @@ Opened from the Stocks page ("My portfolio"). Nothing asks for an amount: each m
   the latest price; "I sold it" fixes the result.
 - **J trades:** money comes from the member's own figure, else their linked MT5 account, else their lot times the pips.
 - **Wann calls:** a call the member takes is staked at their default amount. Lost = minus the stake. Won = payout minus
-  stake once they enter what it paid; until then the win is estimated as if they paid Wann's probability (a 90% call
-  pays about 11 on 100) and marked "estimated".
+  stake: when a call they took wins, the call page asks once what it paid (they can skip; the portfolio then shows
+  "Add payout" for that call). A win is never guessed.
 
 Changing the default applies from then on; calls and stocks already recorded keep their amount.
 

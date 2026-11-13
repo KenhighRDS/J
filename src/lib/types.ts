@@ -28,6 +28,7 @@ export interface Receipt {
   status: ReceiptStatus; status_source: ReceiptSource; user_lot: number | null; ring_count: number;
   question_sent_at: string | null; answered_at: string | null; user_entry: number | null; user_close: number | null; user_pips: number | null;
   stake_usd?: number | null; payout_usd?: number | null; profit_usd?: number | null;   // portfolio: Wann stake / payout if it wins, the member's own EA result
+  payout_asked_at?: string | null;   // the one time the app asked what a won Wann call paid
 }
 export interface SignalEvent { id: number; signal_id: string; type: string; payload: Record<string, unknown>; created_at: string }
 export interface Device { id: string; user_id: string; platform: "android" | "web"; fcm_token: string; app_version: string | null; last_seen: string; created_at: string }
