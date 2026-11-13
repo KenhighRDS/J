@@ -53,7 +53,7 @@ export function Portfolio({ profile, preview }: { profile: Profile; preview?: Po
   const t = totals(lines);
   const shown = lines.filter((l) => l.open === (tab === "open"));
   const counts = { open: lines.filter((l) => l.open).length, closed: lines.filter((l) => !l.open).length };
-  const unknownNote = (k: LineKind) => { const u = t.by[k].unknown; return u ? `, ${u} without ${k === "ea" ? "a lot" : "a payout"}` : ""; };
+  const unknownNote = (k: LineKind) => { const u = t.by[k].unknown; return u ? `, ${u} without ${k === "ea" ? "a lot" : "an amount"}` : ""; };
   const unit: Record<LineKind, [string, string]> = { stock: ["position", "positions"], ea: ["trade", "trades"], wann: ["call", "calls"] };
 
   return (
@@ -98,14 +98,14 @@ export function Portfolio({ profile, preview }: { profile: Profile; preview?: Po
                     ) : (
                       <button type="button" disabled={!receipts[l.key]} onClick={() => receipts[l.key] && setEdit(receipts[l.key])} className="focus-ring shrink-0 text-right" aria-label={receipts[l.key] ? `Edit ${l.title}` : undefined}>
                         <span className={`block tabular text-[15px] ${l.pnl == null ? "text-muted" : tone(l.pnl)} ${l.pnl == null && l.putIn == null ? "" : "font-mono"}`}>{l.pnl == null ? (l.putIn != null ? money(l.putIn, false) : "Open") : money(l.pnl)}</span>
-                        <span className="block text-[12px] text-muted">{l.estimated ? "from your lot" : l.pct != null ? pct(l.pct) : l.pnl == null && l.putIn != null ? "in play" : ""}</span>
+                        <span className="block text-[12px] text-muted">{l.estimated ? (l.kind === "wann" ? "estimated" : "from your lot") : l.pct != null ? pct(l.pct) : l.pnl == null && l.putIn != null ? "in play" : ""}</span>
                       </button>
                     )}
                   </li>
                 ))}
               </ul>
             )}
-            <p className="mt-3 px-1 text-[13px] leading-snug text-muted">Stocks use the latest price J has. J trades use your linked MT5 account when there is one, otherwise your lot and the pips. Wann calls count your default amount; a win counts once you say what it paid. Tap a figure to correct it.</p>
+            <p className="mt-3 px-1 text-[13px] leading-snug text-muted">Stocks use the latest price J has. J trades use your linked MT5 account when there is one, otherwise your lot and the pips. Wann calls and stocks use your amount (Settings, Default amount); a Wann win is worked out from Wann's probability. Tap a figure to correct it.</p>
           </section>
         </>
       )}

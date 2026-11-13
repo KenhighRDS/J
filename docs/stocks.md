@@ -65,17 +65,20 @@ Filings come out up to 45 days after the quarter ends, and the page says so.
 
 ## Portfolio
 
-Opened from the Stocks page ("My portfolio"). Nothing asks for an amount: each member has one **default amount**
-(100 to start, changed in Settings) that J records for them.
+Opened from the Stocks page ("My portfolio"). The app asks one money question, once: **what amount do you use?** The
+member saves it (100 stands in until they do) and J works out every profit from it. It is asked the first time they
+reach Wann, Stocks or the portfolio, and can be changed in Settings → Default amount.
 
-- **Stocks:** "I bought it" records the default amount at the latest price in one tap. Both can be edited. Value follows
-  the latest price; "I sold it" fixes the result.
-- **J trades:** money comes from the member's own figure, else their linked MT5 account, else their lot times the pips.
-- **Wann calls:** a call the member takes is staked at their default amount. Lost = minus the stake. Won = payout minus
-  stake: when a call they took wins, the call page asks once what it paid (they can skip; the portfolio then shows
-  "Add payout" for that call). A win is never guessed.
+- **Stocks:** "I bought it" records the amount at the latest price in one tap. Value follows the latest price; "I sold
+  it" fixes the result.
+- **Wann calls:** a call the member takes is staked at their amount. Lost = minus the amount. Won = the win worked out
+  as if they paid Wann's probability (a 90% call makes about 11 on 100), marked "estimated", because J has no Kalshi
+  prices.
+- **J trades:** money comes from their linked MT5 account, else their lot times the pips (the lot comes from their
+  balance and risk settings, as before).
 
-Changing the default applies from then on; calls and stocks already recorded keep their amount.
+The first answer also replaces the stand-in 100 on calls and stocks recorded before it. A later change applies from
+then on. Any single figure can be corrected by tapping it in the portfolio.
 
 ## Data sources
 

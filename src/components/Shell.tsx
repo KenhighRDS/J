@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { AmountSheet } from "./AmountSheet";
 import type { Profile } from "../lib/types";
 
 const Icon = {
@@ -9,8 +11,13 @@ const Icon = {
 };
 
 /** Fixed full-height frame; the bottom menu is the last flex row, never position: fixed. */
-export function Shell({ profile }: { profile: Profile }) {
+export function Shell({ profile, reload, previewAsk }: { profile: Profile; reload?: () => Promise<void>; previewAsk?: boolean }) {
   const { pathname } = useLocation();
+  // The one question about money: asked the first time a member reaches Wann, Stocks or the portfolio, until they answer.
+  // Not on a single Wann call: that page has its own sheets, and the call should not wait behind a question.
+  const [askLater, setAskLater] = useState(false);
+  const amountPage = previewAsk || /^\/(wann|portfolio)$|^\/stocks(\/|$)/.test(pathname);
+  const askAmount = amountPage && !askLater && profile.default_amount_set_at == null;
   const fullScreen = /^\/(signal|wann)\/[^/]+$/.test(pathname) || /^\/reports\/[^/]+$/.test(pathname);
   const tabs = [
     { to: "/", label: "Signals", icon: Icon.signals, also: ["/signal", "/wann"] },
@@ -23,6 +30,7 @@ export function Shell({ profile }: { profile: Profile }) {
       <div className="scroll-area">
         <Outlet />
       </div>
+      <AmountSheet open={askAmount} onClose={() => setAskLater(true)} amount={profile.default_amount ?? 100} onSaved={reload ?? (async () => undefined)} first preview={previewAsk} />
       {!fullScreen && (
         <nav className="shrink-0 border-t border-border bg-bg pb-[env(safe-area-inset-bottom)]" aria-label="Main">
           <div className="mx-auto flex max-w-md">

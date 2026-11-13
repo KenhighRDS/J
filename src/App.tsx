@@ -59,7 +59,7 @@ export default function App() {
       <PushListener />
       <UpdateSheet />
       <Routes>
-        <Route element={<Shell profile={profile} />}>
+        <Route element={<Shell profile={profile} reload={reload} />}>
           <Route index element={<Home profile={profile} />} />
           <Route path="/signal/:id" element={<SignalRoute profile={profile} reloadProfile={reload} />} />
           <Route path="/wann" element={<WannList profile={profile} />} />

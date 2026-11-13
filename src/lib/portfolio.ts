@@ -70,22 +70,31 @@ export function eaLine(r: Receipt, s: Signal, trackerProfit: number | null = nul
   };
 }
 
-/** A Wann call the member took: lost = minus the stake, void = money back, won = payout minus stake once they say what
- *  it paid (the app asks once when the call wins). The stake is the member's default amount unless they changed it. */
+/** What a stake wins when the price paid equals Wann's probability: a 90% call pays about 11 on 100. J has no Kalshi
+ *  prices, so this is how a win is worked out from the member's amount; a payout they enter replaces it. */
+export function estimatedWin(stake: number, probability: number): number | null {
+  return probability > 0 && probability < 100 ? round2(stake * (100 / probability - 1)) : null;
+}
+
+/** A Wann call the member took, at their amount: lost = minus the stake, void = money back, won = the payout they
+ *  entered minus the stake, else the win worked out from Wann's probability (marked estimated). */
 export function wannLine(r: Receipt, c: WannCall): PortfolioLine {
   const stake = r.stake_usd ?? null;
   const live = c.status === "live";
-  let pnl: number | null = null, needs: PortfolioLine["needs"] = null;
+  let pnl: number | null = null, needs: PortfolioLine["needs"] = null, estimated = false;
   if (stake == null) needs = "amount";
   else if (!live) {
     if (c.status === "withdrawn" || c.outcome === "void") pnl = 0;
     else if (c.outcome === "lost") pnl = -stake;
-    else if (c.outcome === "won") { if (r.payout_usd != null) pnl = round2(r.payout_usd - stake); else needs = "payout"; }
+    else if (c.outcome === "won") {
+      if (r.payout_usd != null) pnl = round2(r.payout_usd - stake);
+      else { pnl = estimatedWin(stake, c.probability); estimated = pnl != null; if (pnl == null) needs = "payout"; }
+    }
   }
   const state = live ? "Live" : c.outcome === "won" ? "Won" : c.outcome === "lost" ? "Lost" : "Void";
   return {
     key: `wann-${r.id}`, kind: "wann", title: `${c.home} vs ${c.away}`, sub: `${c.pick_label} · ${state}`, route: `/wann/${c.id}`, at: c.kickoff_utc,
-    open: live, putIn: stake, value: live ? stake : null, pnl, pct: pnl != null && stake ? Math.round((pnl / stake) * 1000) / 10 : null, estimated: false, needs,
+    open: live, putIn: stake, value: live ? stake : null, pnl, pct: pnl != null && stake ? Math.round((pnl / stake) * 1000) / 10 : null, estimated, needs,
   };
 }
 

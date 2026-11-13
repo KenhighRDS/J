@@ -1,13 +1,12 @@
 // Dev-only fixtures for the stock and portfolio screens:
 //   /__preview/stocks   /__preview/stock?state=swing|ipo|long|closed&pos=1|sold   /__preview/portfolio?empty=1   /__preview/shell (tab bar)
-//   /__preview/admin-stocks   /__preview/settings   /__preview/payout
+//   /__preview/admin-stocks   /__preview/settings   /__preview/amount (the one-time question)
 import { Route, Routes } from "react-router-dom";
 import { Shell } from "../components/Shell";
 import { StockRoute, StocksList } from "./Stocks";
 import { Portfolio, type PortfolioData } from "./Portfolio";
 import { AdminStocks } from "./admin/Stocks";
 import { Settings } from "./Settings";
-import { MoneySheet } from "../components/MoneySheet";
 import { PageTitle } from "../components/ui";
 import type { Profile, Receipt, Signal, StockPick, StockPosition, WannCall } from "../lib/types";
 
@@ -62,17 +61,17 @@ const portfolio: PortfolioData = {
     { ...rec({ id: "r5", kind: "wann", signal_id: null, wann_call_id: "c1", user_lot: null, stake_usd: 50, payout_usd: 54 }), call: call({}) },
     { ...rec({ id: "r6", kind: "wann", signal_id: null, wann_call_id: "c2", user_lot: null, stake_usd: 30 }), call: call({ id: "c2", home: "Inter", away: "Lecce", pick_label: "Inter wins", outcome: "lost", final_score: "0–1", kickoff_utc: ago(3) }) },
     { ...rec({ id: "r7", kind: "wann", signal_id: null, wann_call_id: "c3", user_lot: null, stake_usd: 40, payout_usd: 44 }), call: call({ id: "c3", home: "Arsenal", away: "Chelsea", pick_label: "Arsenal or draw", status: "live", outcome: null, final_score: null, kickoff_utc: new Date(Date.now() + 5 * 36e5).toISOString() }) },
-    { ...rec({ id: "r8", kind: "wann", signal_id: null, wann_call_id: "c4", user_lot: null }), call: call({ id: "c4", home: "PSG", away: "Le Havre", pick_label: "PSG wins", kickoff_utc: ago(4) }) },
+    { ...rec({ id: "r8", kind: "wann", signal_id: null, wann_call_id: "c4", user_lot: null, stake_usd: 100 }), call: call({ id: "c4", home: "PSG", away: "Le Havre", pick_label: "PSG wins", kickoff_utc: ago(4) }) },
   ],
   tracker: [],
 };
 const frame = (child: React.ReactNode) => <div className="app-frame"><div className="scroll-area">{child}</div></div>;
 
-export function isStocksPreview(pathname: string): boolean { return /^\/__preview\/(stocks|stock|portfolio|shell|admin-stocks|settings|payout)$/.test(pathname); }
+export function isStocksPreview(pathname: string): boolean { return /^\/__preview\/(stocks|stock|portfolio|shell|admin-stocks|settings|amount)$/.test(pathname); }
 export function StocksPreview({ pathname, params }: { pathname: string; params: URLSearchParams }) {
-  if (pathname === "/__preview/settings") return <Routes><Route path="/__preview/settings" element={<Shell profile={profile} />}><Route index element={<Settings profile={{ ...profile, default_amount: 100 }} reload={async () => undefined} />} /></Route></Routes>;
-  if (pathname === "/__preview/payout") return frame(<MoneySheet open onClose={() => undefined} kind="wann" receipt={rec({ id: "r5", kind: "wann", signal_id: null, wann_call_id: "c1", user_lot: null, stake_usd: 100 })} title="It won. What did it pay?" onSaved={() => undefined} skippable won />);
-  if (pathname === "/__preview/shell") return <Routes><Route path="/__preview/shell" element={<Shell profile={profile} />}><Route index element={<StocksList profile={profile} preview={{ picks, positions }} />} /></Route></Routes>;
+  if (pathname === "/__preview/settings") return <Routes><Route path="/__preview/settings" element={<Shell profile={{ ...profile, default_amount_set_at: "2026-11-13T00:00:00Z" }} />}><Route index element={<Settings profile={{ ...profile, default_amount: 100 }} reload={async () => undefined} />} /></Route></Routes>;
+  if (pathname === "/__preview/amount") return <Routes><Route path="/__preview/amount" element={<Shell profile={{ ...profile, default_amount: 100, default_amount_set_at: null }} previewAsk />}><Route index element={<StocksList profile={profile} preview={{ picks, positions }} />} /></Route></Routes>;
+  if (pathname === "/__preview/shell") return <Routes><Route path="/__preview/shell" element={<Shell profile={{ ...profile, default_amount_set_at: "2026-11-13T00:00:00Z" }} />}><Route index element={<StocksList profile={profile} preview={{ picks, positions }} />} /></Route></Routes>;
   if (pathname === "/__preview/admin-stocks") return frame(<div className="mx-auto w-full max-w-md pb-6"><PageTitle>Admin</PageTitle><div className="px-4"><AdminStocks preview={{
     keys: { finnhub_key: true, massive_key: false, sec_contact: "owner@example.com" },
     probe: { sources: { finnhub: { ok: true, note: "Apple at $271.4, 212 earnings reports in the last 3 days, every number the scan uses is there" }, massive: { ok: false, note: "No key saved. Picks go out without a company description and with a simpler stop" }, sec: { ok: true, note: "Reached the SEC (BERKSHIRE HATHAWAY INC)" }, openfigi: { ok: true, note: "Ticker lookup works" } }, investors_loaded: 17, holdings_matched: 2840 },

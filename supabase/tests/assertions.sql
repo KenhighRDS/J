@@ -174,22 +174,28 @@ insert into public.receipts (kind, wann_call_id, user_id) values ('wann', 'eeeee
 set role authenticated; set request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
 do $$ declare r public.receipts; p public.stock_positions; pr public.profiles; begin
   assert (select default_amount from public.profiles where id = '22222222-2222-2222-2222-222222222222') = 100, 'default amount starts at 100';
+  assert (select default_amount_set_at from public.profiles where id = '22222222-2222-2222-2222-222222222222') is null, 'and the member has not been asked yet';
   r := public.receipt_take(p_call => 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee');
   assert r.status = 'taken' and r.stake_usd = 100, 'taking a Wann call stakes the default amount';
   p := public.stock_take('cccccccc-cccc-cccc-cccc-cccccccccccc');
   assert p.amount_usd = 100 and p.buy_price = 110, 'I bought it without an amount uses the default at the latest price';
-  pr := public.profile_set_default_amount(250.005);
-  assert pr.default_amount = 250.01, 'default amount saved';
   r := public.receipt_set_money(p_call => 'ffffffff-ffff-ffff-ffff-ffffffffffff', p_stake => 40);
   r := public.receipt_answer(true, p_call => 'ffffffff-ffff-ffff-ffff-ffffffffffff');
-  assert r.status = 'taken' and r.stake_usd = 40, 'an amount the member entered is kept';
-  assert (select stake_usd from public.receipts where wann_call_id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee' and user_id = '22222222-2222-2222-2222-222222222222') = 100, 'changing the default does not rewrite calls already taken';
+  assert r.status = 'taken' and r.stake_usd = 40, 'an amount the member typed is kept when the call becomes taken';
+  -- the first answer to "what amount?" replaces the stand-in on what was already recorded
+  pr := public.profile_set_default_amount(250.005);
+  assert pr.default_amount = 250.01 and pr.default_amount_set_at is not null, 'amount saved, and the question is answered';
+  assert (select stake_usd from public.receipts where wann_call_id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee' and user_id = '22222222-2222-2222-2222-222222222222') = 250.01, 'first answer applies to calls taken before it';
+  assert (select amount_usd from public.stock_positions where user_id = '22222222-2222-2222-2222-222222222222') = 250.01, 'and to stocks marked as bought before it';
+  assert (select stake_usd from public.receipts where wann_call_id = 'ffffffff-ffff-ffff-ffff-ffffffffffff' and user_id = '22222222-2222-2222-2222-222222222222') = 40, 'but not to an amount the member typed';
+  -- a later change applies from then on
+  pr := public.profile_set_default_amount(300);
+  assert (select stake_usd from public.receipts where wann_call_id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee' and user_id = '22222222-2222-2222-2222-222222222222') = 250.01, 'a later change does not rewrite calls already taken';
+  assert (select amount_usd from public.stock_positions where user_id = '22222222-2222-2222-2222-222222222222') = 250.01, 'nor stocks already recorded';
+  perform public.stock_untake('cccccccc-cccc-cccc-cccc-cccccccccccc');
   p := public.stock_take('cccccccc-cccc-cccc-cccc-cccccccccccc');
-  assert p.amount_usd = 250.01, 'the new default applies from now on';
+  assert p.amount_usd = 300, 'the new amount is used from now on';
   begin perform public.profile_set_default_amount(0); raise exception 'zero default accepted'; exception when sqlstate 'P0001' then null; end;
-  r := public.receipt_payout_asked('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee');
-  assert r.payout_asked_at is not null and r.payout_usd is null, 'the payout question is remembered as asked';
-  assert (public.receipt_payout_asked('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee')).payout_asked_at = r.payout_asked_at, 'asking is recorded once';
   perform public.stock_untake('cccccccc-cccc-cccc-cccc-cccccccccccc');
 end $$;
 reset role;

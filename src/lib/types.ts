@@ -4,7 +4,8 @@ export interface Profile {
   id: string; email: string; name: string | null; role: Role; status: ProfileStatus;
   balance: number | null; balance_currency: string | null; risk_pct: number; balance_source: "manual" | "tracker";
   last_seen: string | null; created_at: string;
-  default_amount?: number;   // what a Wann stake or a stock buy is recorded at unless the member changes it (100 to start)
+  default_amount?: number;   // the one amount J uses for every Wann call and stock the member takes (100 until they choose)
+  default_amount_set_at?: string | null;   // when they answered the one-time question; null = not asked yet
 }
 export type Direction = "buy" | "sell";
 export type OrderType = "market" | "buy_stop" | "sell_stop" | "buy_limit" | "sell_limit";
@@ -28,7 +29,6 @@ export interface Receipt {
   status: ReceiptStatus; status_source: ReceiptSource; user_lot: number | null; ring_count: number;
   question_sent_at: string | null; answered_at: string | null; user_entry: number | null; user_close: number | null; user_pips: number | null;
   stake_usd?: number | null; payout_usd?: number | null; profit_usd?: number | null;   // portfolio: Wann stake / payout if it wins, the member's own EA result
-  payout_asked_at?: string | null;   // the one time the app asked what a won Wann call paid
 }
 export interface SignalEvent { id: number; signal_id: string; type: string; payload: Record<string, unknown>; created_at: string }
 export interface Device { id: string; user_id: string; platform: "android" | "web"; fcm_token: string; app_version: string | null; last_seen: string; created_at: string }

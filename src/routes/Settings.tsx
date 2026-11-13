@@ -7,6 +7,7 @@ import { appVersion, isAndroidNative } from "../lib/platform";
 import type { Profile } from "../lib/types";
 import { NotificationsCard } from "../components/NotificationsCard";
 import { FingerprintRow } from "../components/FingerprintRow";
+import { AmountSheet } from "../components/AmountSheet";
 
 export function Settings({ profile, reload }: { profile: Profile; reload: () => Promise<void> }) {
   const [balanceOpen, setBalanceOpen] = useState(false);
@@ -70,31 +71,6 @@ export function BalanceSheet({ open, onClose, profile, onSaved }: { open: boolea
       <form onSubmit={save} className="space-y-4">
         <Field label={`Account balance (${profile.balance_currency ?? "USD"})`} type="number" inputMode="decimal" step="any" min="0" value={balance} onChange={(e) => setBalance(e.target.value)} hint="Used for your lot size on every signal." autoFocus />
         <Field label="Risk per trade (%)" type="number" inputMode="decimal" step="0.1" min="0.1" max="100" value={risk} onChange={(e) => setRisk(e.target.value)} error={error} />
-        <Button type="submit" full busy={busy}>Save</Button>
-      </form>
-    </Sheet>
-  );
-}
-
-/** The one amount J records when a member takes a Wann call or marks a stock as bought, so it never has to ask. */
-function AmountSheet({ open, onClose, amount, onSaved }: { open: boolean; onClose: () => void; amount: number; onSaved: () => Promise<void> }) {
-  const [value, setValue] = useState(String(amount));
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const save = async (e: FormEvent) => {
-    e.preventDefault(); setError(null);
-    const n = Number(value.replace(/[$,\s]/g, ""));
-    if (!(n > 0)) { setError("Enter an amount above 0"); return; }
-    setBusy(true);
-    const { error: err } = await supabase.rpc("profile_set_default_amount", { p_amount: n });
-    setBusy(false);
-    if (err) { setError(err.message); return; }
-    await onSaved(); onClose();
-  };
-  return (
-    <Sheet open={open} onClose={onClose} title="Default amount">
-      <form onSubmit={save} className="space-y-4">
-        <Field label="Amount ($)" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} hint="J records this amount when you take a Wann call or tap I bought it on a stock, so it never has to ask. It applies from now on; you can still change any single one in your portfolio." error={error} autoFocus />
         <Button type="submit" full busy={busy}>Save</Button>
       </form>
     </Sheet>
