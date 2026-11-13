@@ -270,9 +270,19 @@ export const resultPct = (entry: number, close: number) => Math.round(((close - 
 
 // ---------- big investors (SEC 13F) ----------
 export interface Holding { cusip: string; issuer: string; classTitle: string; value: number; shares: number }
+// one fixed pattern per element we read (an optional namespace prefix, text content only)
+const F13_TAGS = {
+  nameOfIssuer: /<(?:\w+:)?nameOfIssuer>\s*([^<]*?)\s*<\/(?:\w+:)?nameOfIssuer>/i,
+  titleOfClass: /<(?:\w+:)?titleOfClass>\s*([^<]*?)\s*<\/(?:\w+:)?titleOfClass>/i,
+  cusip: /<(?:\w+:)?cusip>\s*([^<]*?)\s*<\/(?:\w+:)?cusip>/i,
+  value: /<(?:\w+:)?value>\s*([^<]*?)\s*<\/(?:\w+:)?value>/i,
+  sshPrnamt: /<(?:\w+:)?sshPrnamt>\s*([^<]*?)\s*<\/(?:\w+:)?sshPrnamt>/i,
+  sshPrnamtType: /<(?:\w+:)?sshPrnamtType>\s*([^<]*?)\s*<\/(?:\w+:)?sshPrnamtType>/i,
+  putCall: /<(?:\w+:)?putCall>\s*([^<]*?)\s*<\/(?:\w+:)?putCall>/i,
+} as const;
 /** Reads a 13F information table (XML). Options and bonds are left out; rows for the same security are added up. Values are whole dollars (filings since 2023). */
 export function parse13F(xml: string): Holding[] {
-  const tag = (block: string, name: string) => { const m = block.match(new RegExp(`<(?:\\w+:)?${name}>\\s*([^<]*?)\\s*</(?:\\w+:)?${name}>`, "i")); return m ? m[1].replace(/&amp;/g, "&") : null; };
+  const tag = (block: string, name: keyof typeof F13_TAGS) => { const m = block.match(F13_TAGS[name]); return m ? m[1].replace(/&amp;/g, "&") : null; };
   const by = new Map<string, Holding>();
   for (const m of xml.matchAll(/<(?:\w+:)?infoTable>([\s\S]*?)<\/(?:\w+:)?infoTable>/gi)) {
     const b = m[1];
