@@ -204,5 +204,25 @@ do $$ begin
   update public.receipts set status = 'taken' where kind = 'ea' and user_id = '22222222-2222-2222-2222-222222222222';
   assert not exists (select 1 from public.receipts where kind = 'ea' and stake_usd is not null), 'J trades get no stake';
 end $$;
+
+-- ---------- crypto picks share the tables, told apart by asset ----------
+reset role;
+do $$ begin
+  -- the same symbol can be open once as a stock and once as a coin, but not twice as a coin
+  insert into public.stock_picks (asset, symbol, name, kind, horizon, headline, score, entry_price, sent_at) values ('crypto', 'ACME', 'Acme Coin', 'catalyst', 'swing', 'breakout', 80, 2.5, now());
+  begin
+    insert into public.stock_picks (asset, symbol, name, kind, horizon, headline, score, entry_price, sent_at) values ('crypto', 'ACME', 'Acme Coin', 'ipo', 'swing', 'again', 70, 2.6, now());
+    raise exception 'a second open crypto ACME pick was accepted';
+  exception when unique_violation then null; end;
+  begin
+    insert into public.stock_picks (asset, symbol, name, kind, horizon, headline, score, entry_price) values ('bond', 'X', 'X', 'ipo', 'swing', 'x', 1, 1);
+    raise exception 'an unknown asset was accepted';
+  exception when check_violation then null; end;
+  assert (select count(*) from public.stock_picks where asset = 'stock') >= 1 and (select count(*) from public.stock_picks where asset = 'crypto') = 1, 'stock rows keep the default asset';
+  assert public.crypto_due_what() in ('', 'scan', 'track') and public.stocks_due_what() in ('', 'scan', 'track', 'investors'), 'due checks run';
+  insert into public.stock_scans (asset, trading_day, dry_run, stage) values ('crypto', (now() at time zone 'utc')::date - 1, false, 'done');
+  assert public.crypto_due_what() <> 'scan', 'one crypto scan a day';
+  insert into public.stock_candidates (scan_id, symbol, source) select id, 'SOL', 'breakout' from public.stock_scans where asset = 'crypto' limit 1;
+end $$;
 rollback;
 select 'ALL ASSERTIONS PASSED' as result;

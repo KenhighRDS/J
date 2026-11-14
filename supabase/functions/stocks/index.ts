@@ -11,9 +11,9 @@ import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { handler, json, readJson, fail, isCronCall } from "../_shared/http.ts";
 import { serviceClient } from "../_shared/supabase.ts";
 import { requireAdmin } from "../_shared/auth.ts";
-import { sendPush, type Device } from "../_shared/fcm.ts";
 import { DataError, figiMap, finnhub, massive, sec, type Finnhub, type Massive } from "../_shared/stockData.ts";
 import * as R from "../_shared/stockRules.ts";
+import { closePick, msg, push, setting } from "../_shared/picks.ts";
 
 const ENRICH_BATCH = 14;        // 3 Finnhub calls each
 const FINALISTS_PER_RUN = 2;    // 2 Massive calls each
@@ -22,26 +22,7 @@ type Body = { action?: string; dry_run?: boolean; force?: boolean; pick_id?: str
 interface ScanRow { id: string; trading_day: string; dry_run: boolean; stage: string; stats: Record<string, unknown> }
 interface CandRow { id: number; symbol: string; source: "earnings" | "ipo"; seed: R.Seed; score: number | null; detail: Record<string, unknown> }
 
-const setting = async (sb: SupabaseClient, key: string, def: number) => { const { data } = await sb.rpc("setting_num", { p_key: key, p_default: def }); return Number(data ?? def); };
 const dataKey = async (sb: SupabaseClient, name: string) => { const { data } = await sb.rpc("data_key", { p_name: name }); return (data as string | null) || null; };
-const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
-
-// ---------- push ----------
-async function push(sb: SupabaseClient, userIds: string[] | null, adminsOnly: boolean, title: string, body: string, route: string, pickId: string): Promise<number> {
-  let q = sb.from("profiles").select("id").eq("status", "active");
-  if (adminsOnly) q = q.eq("role", "admin");
-  const { data: people } = await q;
-  let ids = ((people ?? []) as { id: string }[]).map((p) => p.id);
-  if (userIds) ids = ids.filter((id) => userIds.includes(id));
-  if (!ids.length) return 0;
-  const { data: devs } = await sb.from("devices").select("id,user_id,platform,fcm_token").in("user_id", ids);
-  let sent = 0;
-  for (const d of (devs ?? []) as Device[]) {
-    const r = await sendPush(sb, d, { title, body, route, ttlSec: 86_400, data: { notification_id: crypto.randomUUID(), type: "stock", pick_id: pickId } }, { kind: "stock" });
-    if (r.ok) sent++;
-  }
-  return sent;
-}
 
 // ---------- big investors ----------
 async function holdersOf(sb: SupabaseClient, symbol: string): Promise<R.Holder[]> {
@@ -122,7 +103,7 @@ async function startScan(sb: SupabaseClient, fh: Finnhub, mv: Massive | null, dr
   }
   // not again while a pick is open, nor soon after one closed
   const since = new Date(Date.now() - Math.max(R.RULES.repickDays.earnings, R.RULES.repickDays.ipo) * 864e5).toISOString();
-  const { data: recent } = await sb.from("stock_picks").select("symbol,kind,status,sent_at").eq("is_test", false).or(`status.eq.open,sent_at.gte.${since}`);
+  const { data: recent } = await sb.from("stock_picks").select("symbol,kind,status,sent_at").eq("asset", "stock").eq("is_test", false).or(`status.eq.open,sent_at.gte.${since}`);
   const blocked = new Set<string>();
   for (const p of (recent ?? []) as { symbol: string; kind: string; status: string; sent_at: string }[]) {
     const days = (Date.now() - Date.parse(p.sent_at)) / 864e5;
@@ -188,7 +169,7 @@ async function selectStep(sb: SupabaseClient, fh: Finnhub, mv: Massive | null, s
   const min = (await setting(sb, "stocks_min_score", 70)) + (uptrend === false ? 10 : 0);   // a weak market raises the bar
   const { count: already } = await sb.from("stock_candidates").select("id", { count: "exact", head: true }).eq("scan_id", scan.id).eq("status", "picked");
   let picked = already ?? 0, tried = 0; const sent: string[] = [];
-  const { data: open } = await sb.from("stock_picks").select("horizon").eq("status", "open").eq("is_test", false);
+  const { data: open } = await sb.from("stock_picks").select("horizon").eq("asset", "stock").eq("status", "open").eq("is_test", false);
   let openLong = (open ?? []).filter((o: { horizon: string }) => o.horizon === "long").length, openSwing = (open ?? []).length - openLong;
   const { data: best } = await sb.from("stock_candidates").select("id,symbol,source,seed,score,detail").eq("scan_id", scan.id).eq("status", "scored").gte("score", min).order("score", { ascending: false }).limit(FINALISTS_PER_RUN);
   for (const c of (best ?? []) as CandRow[]) {
@@ -217,20 +198,8 @@ async function selectStep(sb: SupabaseClient, fh: Finnhub, mv: Massive | null, s
 }
 
 // ---------- tracking ----------
-async function closePick(sb: SupabaseClient, k: { id: string; symbol: string; entry_price: number }, reason: "stop" | "target" | "time" | "manual", price: number): Promise<void> {
-  const pct = R.resultPct(Number(k.entry_price), price);
-  const { data: upd } = await sb.from("stock_picks").update({ status: "closed", close_reason: reason, close_price: price, result_pct: pct, last_price: price, last_price_at: new Date().toISOString(), closed_at: new Date().toISOString() }).eq("id", k.id).eq("status", "open").select("id,is_test");
-  if (!upd?.length) return;
-  const label = { stop: "stop hit", target: "target hit", time: "time ran out", manual: "closed by J" }[reason];
-  const { data: holders } = await sb.from("stock_positions").select("user_id").eq("pick_id", k.id).is("sold_at", null);
-  const ids = ((holders ?? []) as { user_id: string }[]).map((h) => h.user_id);
-  const title = `${k.symbol} closed: ${label}`, body = `${pct > 0 ? "+" : ""}${pct}% since the pick. If you sold, record it in your portfolio.`;
-  if (ids.length) await push(sb, ids, false, title, body, `/stocks/${k.id}`, k.id);
-  await push(sb, null, true, title, `${pct > 0 ? "+" : ""}${pct}% since the pick.`, `/stocks/${k.id}`, k.id);   // admins always hear about a close
-}
-
 async function trackStep(sb: SupabaseClient, fh: Finnhub): Promise<Record<string, unknown>> {
-  const { data: open } = await sb.from("stock_picks").select("id,symbol,horizon,entry_price,stop_price,target_price,expires_at,sent_at").eq("status", "open").order("sent_at").limit(45);
+  const { data: open } = await sb.from("stock_picks").select("id,symbol,horizon,entry_price,stop_price,target_price,expires_at,sent_at").eq("asset", "stock").eq("status", "open").order("sent_at").limit(45);
   let priced = 0; const closed: string[] = [];
   for (const k of (open ?? []) as (R.OpenPick & { id: string; symbol: string; sent_at: string })[]) {
     try {
@@ -313,7 +282,7 @@ Deno.serve(handler(async (req) => {
   if (action === "test_pick") return json(await testPick(sb, fh, mv, (body.symbol ?? "").trim().toUpperCase()));
   if (action === "track") return json(await trackStep(sb, fh));
   if (action === "close") {
-    const { data: k } = await sb.from("stock_picks").select("id,symbol,entry_price,last_price").eq("id", body.pick_id ?? "").eq("status", "open").maybeSingle();
+    const { data: k } = await sb.from("stock_picks").select("id,symbol,entry_price,last_price").eq("id", body.pick_id ?? "").eq("asset", "stock").eq("status", "open").maybeSingle();
     if (!k) fail(404, "No open pick with that id");
     const q = await fh.quote(k.symbol).catch(() => null);
     await closePick(sb, k, "manual", q && q.c > 0 ? q.c : Number(k.last_price ?? k.entry_price));
@@ -321,7 +290,7 @@ Deno.serve(handler(async (req) => {
   }
 
   const running = async () => {
-    const { data } = await sb.from("stock_scans").select("id,trading_day,dry_run,stage,stats").in("stage", ["seed", "enrich", "select"]).gte("started_at", new Date(Date.now() - 3 * 36e5).toISOString()).order("started_at").limit(1);
+    const { data } = await sb.from("stock_scans").select("id,trading_day,dry_run,stage,stats").eq("asset", "stock").in("stage", ["seed", "enrich", "select"]).gte("started_at", new Date(Date.now() - 3 * 36e5).toISOString()).order("started_at").limit(1);
     return (data?.[0] as ScanRow | undefined) ?? null;
   };
   const step = async (scan: ScanRow) => (scan.stage === "select" ? { scan: scan.id, stage: "select", ...(await selectStep(sb, fh, mv, scan)) } : { scan: scan.id, stage: "enrich", ...(await enrichStep(sb, fh, scan, started)) });
