@@ -17,6 +17,7 @@ import { Preview } from "./routes/Preview";
 import { WannList, WannRoute } from "./routes/Wann";
 import { StocksList, StockRoute } from "./routes/Stocks";
 import { Portfolio } from "./routes/Portfolio";
+import { useChannels } from "./lib/useChannels";
 import { Reports } from "./routes/Reports";
 import { ReportRoute } from "./routes/Report";
 import { Settings } from "./routes/Settings";
@@ -30,6 +31,8 @@ function Splash() {
 export default function App() {
   const { session, loading } = useSession();
   const { profile, reload } = useProfile(session);
+  const channels = useChannels(profile?.id);                       // the signals an admin switched on for this member
+  const has = (c: string) => (channels ?? []).includes(c);
   const { pathname } = useLocation();
   if (!isConfigured) {
     return (
@@ -59,15 +62,15 @@ export default function App() {
       <PushListener />
       <UpdateSheet />
       <Routes>
-        <Route element={<Shell profile={profile} reload={reload} />}>
-          <Route index element={<Home profile={profile} />} />
+        <Route element={<Shell profile={profile} reload={reload} channels={channels} />}>
+          <Route index element={<Home profile={profile} channels={channels} />} />
           <Route path="/signal/:id" element={<SignalRoute profile={profile} reloadProfile={reload} />} />
           <Route path="/wann" element={<WannList profile={profile} />} />
           <Route path="/wann/:id" element={<WannRoute profile={profile} />} />
-          <Route path="/stocks" element={<StocksList profile={profile} />} />
-          <Route path="/stocks/:id" element={<StockRoute profile={profile} />} />
-          <Route path="/crypto" element={<StocksList profile={profile} asset="crypto" />} />
-          <Route path="/crypto/:id" element={<StockRoute profile={profile} asset="crypto" />} />
+          {has("stocks") && <Route path="/stocks" element={<StocksList profile={profile} />} />}
+          {has("stocks") && <Route path="/stocks/:id" element={<StockRoute profile={profile} />} />}
+          {has("crypto") && <Route path="/crypto" element={<StocksList profile={profile} asset="crypto" />} />}
+          {has("crypto") && <Route path="/crypto/:id" element={<StockRoute profile={profile} asset="crypto" />} />}
           <Route path="/portfolio" element={<Portfolio profile={profile} />} />
           <Route path="/reports" element={<Reports profile={profile} />} />
           <Route path="/reports/:id" element={<ReportRoute profile={profile} />} />

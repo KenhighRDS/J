@@ -10,11 +10,12 @@ import { WannBadge } from "../components/WannCard";
 
 type Row = Receipt & { signal: Signal };
 
-export function Home({ profile }: { profile: Profile }) {
+export function Home({ profile, channels }: { profile: Profile; channels?: string[] | null }) {
+  const hasWann = (channels ?? []).includes("wann");
   const [rows, setRows] = useState<Row[] | null>(null);
   const [now, setNow] = useState(Date.now());
   const [wann, setWann] = useState<{ live: number } | null>(null);
-  useEffect(() => { void supabase.from("wann_access").select("enabled").eq("user_id", profile.id).maybeSingle().then(async ({ data }) => { if (!data?.enabled) { setWann(null); return; } const { count } = await supabase.from("wann_calls").select("id", { count: "exact", head: true }).eq("status", "live").gte("kickoff_utc", new Date().toISOString()); setWann({ live: count ?? 0 }); }); }, [profile.id]);
+  useEffect(() => { void (async () => { if (!hasWann) { setWann(null); return; } const { count } = await supabase.from("wann_calls").select("id", { count: "exact", head: true }).eq("status", "live").gte("kickoff_utc", new Date().toISOString()); setWann({ live: count ?? 0 }); })(); }, [profile.id, hasWann]);
   const load = useCallback(async () => {
     const { data } = await supabase.from("receipts").select("*, signal:signals(*)").eq("user_id", profile.id).eq("kind", "ea").order("created_at", { ascending: false }).limit(200);
     setRows(((data ?? []) as Row[]).filter((r) => r.signal));

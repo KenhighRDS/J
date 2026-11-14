@@ -8,13 +8,19 @@ export const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 export const setting = async (sb: SupabaseClient, key: string, def: number) => { const { data } = await sb.rpc("setting_num", { p_key: key, p_default: def }); return Number(data ?? def); };
 export const routeOf = (asset: Asset, id: string) => `/${asset === "crypto" ? "crypto" : "stocks"}/${id}`;
 
-/** A plain notification to active members (or admins only), optionally narrowed to some users. Returns how many devices took it. */
-export async function push(sb: SupabaseClient, userIds: string[] | null, adminsOnly: boolean, title: string, body: string, route: string, pickId: string): Promise<number> {
+/** A plain notification to active members (or admins only), optionally narrowed to some users or to the members who
+ *  have a channel switched on. Returns how many devices took it. */
+export async function push(sb: SupabaseClient, userIds: string[] | null, adminsOnly: boolean, title: string, body: string, route: string, pickId: string, channel?: string): Promise<number> {
   let q = sb.from("profiles").select("id").eq("status", "active");
   if (adminsOnly) q = q.eq("role", "admin");
   const { data: people } = await q;
   let ids = ((people ?? []) as { id: string }[]).map((p) => p.id);
   if (userIds) ids = ids.filter((id) => userIds.includes(id));
+  if (channel) {
+    const { data: allowed } = await sb.rpc("channel_users", { p_channel: channel });
+    const on = new Set(((allowed ?? []) as (string | { channel_users: string })[]).map((u) => (typeof u === "string" ? u : u.channel_users)));
+    ids = ids.filter((id) => on.has(id));
+  }
   if (!ids.length) return 0;
   const { data: devs } = await sb.from("devices").select("id,user_id,platform,fcm_token").in("user_id", ids);
   let sent = 0;

@@ -62,6 +62,9 @@ Full description: `docs/stocks.md`.
 ## 7d. Crypto picks
 Full description: `docs/crypto.md`. Nothing to paste: no data key is needed. Admin → **Crypto**: **Check the sources**, **Preview the scan** (sends nothing), **Send a test pick** (admins only). The scan runs daily just after midnight UTC; open picks are re-priced every 15 minutes, every day.
 
+## 7e. Who gets which signal
+Full description: `docs/access.md`. Admin → **Users** → open a member → one switch per signal (USDJPY, Gold, Wann, Stocks, Crypto, and any signal added later). New members start with USDJPY and Gold only.
+
 ## 8. Go-live check
 Invite a second email of yours, install on both phones, send a test from Admin, then a real one from an EA on a demo account, and run the acceptance checklist below.
 

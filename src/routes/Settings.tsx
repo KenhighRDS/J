@@ -27,6 +27,7 @@ export function Settings({ profile, reload }: { profile: Profile; reload: () => 
         </Card>
         <Card>
           <Row label="Default amount" value={"$" + amount.toLocaleString("en-US", { maximumFractionDigits: 2 })} onClick={() => setAmountOpen(true)} trailing={<Chevron />} />
+          <Link to="/portfolio" className="focus-ring flex items-center min-h-12 px-4 py-3 border-b border-border"><span className="text-[15px]">My portfolio</span><span className="ml-auto flex items-center gap-2 text-[15px] text-muted">Your results in money<Chevron /></span></Link>
           <Link to="/reports" className="focus-ring flex items-center min-h-12 px-4 py-3"><span className="text-[15px]">Reports</span><span className="ml-auto flex items-center gap-2 text-[15px] text-muted">Weekly and monthly<Chevron /></span></Link>
         </Card>
         {isAndroidNative && (

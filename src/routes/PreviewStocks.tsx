@@ -8,6 +8,7 @@ import { StockRoute, StocksList } from "./Stocks";
 import { Portfolio, type PortfolioData } from "./Portfolio";
 import { AdminStocks } from "./admin/Stocks";
 import { Settings } from "./Settings";
+import { Users, type Channel, type UserRow } from "./admin/Users";
 import { PageTitle } from "../components/ui";
 import type { Profile, Receipt, Signal, StockPick, StockPosition, WannCall } from "../lib/types";
 
@@ -87,10 +88,17 @@ const portfolio: PortfolioData = {
 };
 const frame = (child: React.ReactNode) => <div className="app-frame"><div className="scroll-area">{child}</div></div>;
 
-export function isStocksPreview(pathname: string): boolean { return /^\/__preview\/(stocks|stock|portfolio|shell|admin-stocks|settings|amount|crypto|coin)$/.test(pathname); }
+export function isStocksPreview(pathname: string): boolean { return /^\/__preview\/(stocks|stock|portfolio|shell|admin-stocks|settings|amount|crypto|coin|users|member)$/.test(pathname); }
 export function StocksPreview({ pathname, params }: { pathname: string; params: URLSearchParams }) {
   if (pathname === "/__preview/settings") return <Routes><Route path="/__preview/settings" element={<Shell profile={{ ...profile, default_amount_set_at: "2026-11-13T00:00:00Z" }} />}><Route index element={<Settings profile={{ ...profile, default_amount: 100 }} reload={async () => undefined} />} /></Route></Routes>;
   if (pathname === "/__preview/amount") return <Routes><Route path="/__preview/amount" element={<Shell profile={{ ...profile, default_amount: 100, default_amount_set_at: null }} previewAsk />}><Route index element={<StocksList profile={profile} preview={{ picks, positions }} />} /></Route></Routes>;
+  if (pathname === "/__preview/users") {
+    const chans: Channel[] = [{ key: "usdjpy", label: "USDJPY", kind: "forex", default_enabled: true, sort: 10 }, { key: "gold", label: "Gold", kind: "forex", default_enabled: true, sort: 20 }, { key: "wann", label: "Wann", kind: "wann", default_enabled: false, sort: 30 }, { key: "stocks", label: "Stocks", kind: "stocks", default_enabled: false, sort: 40 }, { key: "crypto", label: "Crypto", kind: "crypto", default_enabled: false, sort: 50 }];
+    const row = (o: Partial<UserRow>): UserRow => ({ ...profile, devices: [{ platform: "android", last_seen: ago(0, 1) }], on: { usdjpy: true, gold: true, wann: true, stocks: true, crypto: true }, tracker: null, stats: { taken: 12, missed: 3, skipped: 1 }, ...o });
+    return frame(<div className="mx-auto w-full max-w-md pb-6"><PageTitle>Admin</PageTitle><div className="px-4"><Users me={profile} preview={{ channels: chans, users: [row({}), row({ id: "u2", email: "member@example.com", name: "Jean", role: "subscriber", on: { usdjpy: true, gold: true, wann: false, stocks: false, crypto: false }, stats: { taken: 4, missed: 1, skipped: 0 } })] }} /></div></div>);
+  }
+  // a member with only the default signals: no Stocks or Crypto tab
+  if (pathname === "/__preview/member") return <Routes><Route path="/__preview/member" element={<Shell profile={{ ...profile, role: "subscriber", default_amount_set_at: "2026-11-13T00:00:00Z" }} channels={["usdjpy", "gold"]} />}><Route index element={<Settings profile={{ ...profile, role: "subscriber", default_amount: 100 }} reload={async () => undefined} />} /></Route></Routes>;
   if (pathname === "/__preview/crypto") return <Routes><Route path="/__preview/crypto" element={<Shell profile={{ ...profile, default_amount_set_at: "2026-11-13T00:00:00Z" }} />}><Route index element={<StocksList profile={profile} asset="crypto" preview={params.get("empty") ? { picks: [], positions: [] } : { picks: coins, positions: [coinPos] }} />} /></Route></Routes>;
   if (pathname === "/__preview/coin") { const st = params.get("state") ?? "swing"; const k = st === "long" ? btcPick : st === "listing" ? listing : xrp; return frame(<StockRoute profile={profile} asset="crypto" preview={{ pick: k, position: params.get("pos") ? { ...coinPos, pick_id: k.id, buy_price: k.entry_price } : null }} />); }
   if (pathname === "/__preview/shell") return <Routes><Route path="/__preview/shell" element={<Shell profile={{ ...profile, default_amount_set_at: "2026-11-13T00:00:00Z" }} />}><Route index element={<StocksList profile={profile} preview={{ picks, positions }} />} /></Route></Routes>;

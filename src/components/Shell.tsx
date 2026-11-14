@@ -12,19 +12,21 @@ const Icon = {
 };
 
 /** Fixed full-height frame; the bottom menu is the last flex row, never position: fixed. */
-export function Shell({ profile, reload, previewAsk }: { profile: Profile; reload?: () => Promise<void>; previewAsk?: boolean }) {
+export function Shell({ profile, reload, previewAsk, channels }: { profile: Profile; reload?: () => Promise<void>; previewAsk?: boolean; channels?: string[] | null }) {
+  const has = (c: string) => channels === undefined || (channels ?? []).includes(c);   // previews pass nothing and show every tab
   const { pathname } = useLocation();
   // The one question about money: asked the first time a member reaches Wann, Stocks or the portfolio, until they answer.
   // Not on a single Wann call: that page has its own sheets, and the call should not wait behind a question.
   const [askLater, setAskLater] = useState(false);
   const amountPage = previewAsk || /^\/(wann|portfolio)$|^\/(stocks|crypto)(\/|$)/.test(pathname);
-  const askAmount = amountPage && !askLater && profile.default_amount_set_at == null;
+  const usesAmount = has("wann") || has("stocks") || has("crypto");   // the amount only matters for these signals
+  const askAmount = amountPage && usesAmount && !askLater && profile.default_amount_set_at == null;
   const fullScreen = /^\/(signal|wann)\/[^/]+$/.test(pathname) || /^\/reports\/[^/]+$/.test(pathname);
   const tabs = [
     { to: "/", label: "Signals", icon: Icon.signals, also: ["/signal", "/wann"] },
-    { to: "/stocks", label: "Stocks", icon: Icon.stocks, also: ["/portfolio"] },       // the portfolio opens from the Stocks page
-    { to: "/crypto", label: "Crypto", icon: Icon.crypto, also: [] as string[] },
-    { to: "/settings", label: "Settings", icon: Icon.settings, also: ["/reports"] },   // reports open from Settings
+    ...(has("stocks") ? [{ to: "/stocks", label: "Stocks", icon: Icon.stocks, also: [] as string[] }] : []),
+    ...(has("crypto") ? [{ to: "/crypto", label: "Crypto", icon: Icon.crypto, also: [] as string[] }] : []),
+    { to: "/settings", label: "Settings", icon: Icon.settings, also: ["/reports", "/portfolio"] },   // reports and the portfolio open from Settings
     ...(profile.role === "admin" ? [{ to: "/admin", label: "Admin", icon: Icon.admin, also: [] as string[] }] : []),
   ];
   return (

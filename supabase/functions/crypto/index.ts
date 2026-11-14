@@ -123,7 +123,7 @@ async function selectStep(sb: SupabaseClient, scan: ScanRow): Promise<Record<str
         const { data: ins, error } = await sb.from("stock_picks").insert(r.pick).select("id").single();
         if (error || !ins) { await sb.from("stock_candidates").update({ status: "error", detail: { ...c.detail, reject: error?.message ?? "insert failed" } }).eq("id", c.id); continue; }
         await sb.from("stock_candidates").update({ status: "picked", detail: { ...c.detail, name: r.pick.name, pick_id: ins.id } }).eq("id", c.id);
-        await push(sb, null, false, `New crypto pick: ${r.pick.symbol}`, r.pick.headline, routeOf("crypto", ins.id), ins.id);
+        await push(sb, null, false, `New crypto pick: ${r.pick.symbol}`, r.pick.headline, routeOf("crypto", ins.id), ins.id, "crypto");
       }
       picked++; sent.push(c.symbol);
       if (r.pick.horizon === "long") openLong++; else openSwing++;

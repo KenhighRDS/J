@@ -183,7 +183,7 @@ async function selectStep(sb: SupabaseClient, fh: Finnhub, mv: Massive | null, s
         const { data: ins, error } = await sb.from("stock_picks").insert(r.pick).select("id").single();
         if (error || !ins) { await sb.from("stock_candidates").update({ status: "error", detail: { ...c.detail, reject: error?.message ?? "insert failed" } }).eq("id", c.id); continue; }
         await sb.from("stock_candidates").update({ status: "picked", detail: { ...c.detail, pick_id: ins.id } }).eq("id", c.id);
-        await push(sb, null, false, `New stock pick: ${r.pick.symbol}`, r.pick.headline, `/stocks/${ins.id}`, ins.id);
+        await push(sb, null, false, `New stock pick: ${r.pick.symbol}`, r.pick.headline, `/stocks/${ins.id}`, ins.id, "stocks");
       }
       picked++; sent.push(c.symbol);
       if (r.pick.horizon === "long") openLong++; else openSwing++;

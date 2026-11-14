@@ -59,10 +59,10 @@ export function Portfolio({ profile, preview }: { profile: Profile; preview?: Po
 
   return (
     <div className="mx-auto w-full max-w-md pb-6">
-      <header className="flex h-12 items-center px-4"><Link to="/stocks" className="focus-ring -ml-2 flex h-11 items-center gap-1 px-2 text-[15px] text-muted"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M15 5l-7 7 7 7" /></svg>Stocks</Link></header>
+      <header className="flex h-12 items-center px-4"><Link to="/settings" className="focus-ring -ml-2 flex h-11 items-center gap-1 px-2 text-[15px] text-muted"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M15 5l-7 7 7 7" /></svg>Settings</Link></header>
       <PageTitle>Portfolio</PageTitle>
       {lines.length === 0 ? (
-        <Empty title="Nothing in your portfolio yet" body="Take a signal, a Wann call, a stock or a crypto pick and it shows here with what it made." action={<Link to="/stocks" className="focus-ring inline-flex h-12 items-center rounded-[14px] border border-border px-5 text-[15px]">See stock picks</Link>} />
+        <Empty title="Nothing in your portfolio yet" body="Take a signal, a Wann call, a stock or a crypto pick and it shows here with what it made." />
       ) : (
         <>
           <section className="px-5">

@@ -102,6 +102,7 @@ end $$;
 
 -- ---------- stocks + portfolio ----------
 reset role;
+insert into public.user_channels (user_id, channel_key, enabled) values ('22222222-2222-2222-2222-222222222222', 'stocks', true), ('22222222-2222-2222-2222-222222222222', 'crypto', true);   -- this member has the stock and crypto channels
 insert into public.stock_picks (id, symbol, name, kind, horizon, headline, score, entry_price, buy_below, stop_price, target_price, last_price, sent_at)
 values ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'ACME', 'Acme Corp', 'catalyst', 'swing', 'Beat earnings', 84, 100, 103, 92, 116, 110, now());
 insert into public.stock_picks (id, symbol, name, kind, horizon, headline, score, entry_price, last_price, sent_at, is_test)
@@ -223,6 +224,66 @@ do $$ begin
   insert into public.stock_scans (asset, trading_day, dry_run, stage) values ('crypto', (now() at time zone 'utc')::date - 1, false, 'done');
   assert public.crypto_due_what() <> 'scan', 'one crypto scan a day';
   insert into public.stock_candidates (scan_id, symbol, source) select id, 'SOL', 'breakout' from public.stock_scans where asset = 'crypto' limit 1;
+end $$;
+
+-- ---------- channels: one switch per signal, per member ----------
+reset role;
+insert into auth.users (id, email) values ('44444444-4444-4444-4444-444444444444', 'new@example.com');
+update public.profiles set status = 'active' where email = 'new@example.com';
+do $$ declare sid uuid; n integer; begin
+  -- a new member starts with USDJPY and Gold only; an admin with everything
+  assert public.has_channel('44444444-4444-4444-4444-444444444444', 'usdjpy') and public.has_channel('44444444-4444-4444-4444-444444444444', 'gold'), 'new member: USDJPY and Gold on';
+  assert not public.has_channel('44444444-4444-4444-4444-444444444444', 'wann') and not public.has_channel('44444444-4444-4444-4444-444444444444', 'stocks') and not public.has_channel('44444444-4444-4444-4444-444444444444', 'crypto'), 'new member: the rest off';
+  assert public.has_channel('11111111-1111-1111-1111-111111111111', 'crypto') and not public.has_channel('44444444-4444-4444-4444-444444444444', 'nope'), 'admin has every channel; an unknown channel is off';
+  -- a gold signal reaches members with the gold channel
+  insert into public.signals (symbol, base_symbol, direction, order_type, entry, pip_size) values ('XAUUSDm', 'XAUUSD', 'buy', 'market', 4000, 0.1) returning id into sid;
+  perform public.signal_create_receipts(sid);
+  assert exists (select 1 from public.receipts where signal_id = sid and user_id = '44444444-4444-4444-4444-444444444444'), 'gold reaches a member with gold on';
+  insert into public.user_channels (user_id, channel_key, enabled) values ('44444444-4444-4444-4444-444444444444', 'gold', false);
+  insert into public.signals (symbol, base_symbol, direction, order_type, entry, pip_size) values ('XAUUSD', 'XAUUSD', 'sell', 'market', 4010, 0.1) returning id into sid;
+  perform public.signal_create_receipts(sid);
+  assert not exists (select 1 from public.receipts where signal_id = sid and user_id = '44444444-4444-4444-4444-444444444444'), 'gold switched off: no receipt';
+  assert exists (select 1 from public.receipts where signal_id = sid and user_id = '11111111-1111-1111-1111-111111111111'), 'the admin still gets it';
+  -- a symbol nobody has seen gets its own channel, off for members
+  insert into public.signals (symbol, base_symbol, direction, order_type, entry, pip_size) values ('EURUSD', 'EURUSD', 'buy', 'market', 1.1, 0.0001) returning id into sid;
+  select public.signal_create_receipts(sid) into n;
+  assert (select default_enabled from public.signal_channels where key = 'eurusd') = false and (select symbols from public.signal_channels where key = 'eurusd') = '{EURUSD}', 'a new symbol becomes a channel, off by default';
+  assert not exists (select 1 from public.receipts where signal_id = sid and user_id in ('22222222-2222-2222-2222-222222222222', '44444444-4444-4444-4444-444444444444')), 'and reaches no member until switched on';
+  assert public.channel_for_symbol('GOLD') = 'gold' and public.channel_for_symbol('usdjpy') = 'usdjpy', 'known symbols map to their channel';
+  -- a test signal ignores channels (admins and named targets only)
+  insert into public.signals (symbol, base_symbol, direction, order_type, entry, pip_size, is_test) values ('BTCUSD', 'BTCUSD', 'buy', 'market', 60000, 1, true) returning id into sid;
+  perform public.signal_create_receipts(sid);
+  assert (select count(*) from public.receipts where signal_id = sid) = 1 and not exists (select 1 from public.signal_channels where key = 'btcusd'), 'test signals go to admins and create no channel';
+end $$;
+set role authenticated; set request.jwt.claim.sub = '44444444-4444-4444-4444-444444444444';
+do $$ begin
+  assert public.my_channels() = '{usdjpy}', 'my channels: what is on for me';
+  assert (select count(*) from public.stock_picks) = 0, 'no stocks channel: no picks to read';
+  begin perform public.stock_take('cccccccc-cccc-cccc-cccc-cccccccccccc'); raise exception 'took a pick without the channel'; exception when sqlstate 'P0002' then null; end;
+  begin perform public.admin_set_channel('44444444-4444-4444-4444-444444444444', 'stocks', true); raise exception 'a member switched a channel'; exception when insufficient_privilege then null; end;
+end $$;
+set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+do $$ begin
+  perform public.admin_set_channel('44444444-4444-4444-4444-444444444444', 'stocks', true);
+  perform public.admin_set_channel('44444444-4444-4444-4444-444444444444', 'wann', true);
+  perform public.admin_set_channel('44444444-4444-4444-4444-444444444444', 'usdjpy', false);
+  begin perform public.admin_set_channel('44444444-4444-4444-4444-444444444444', 'nope', true); raise exception 'unknown channel accepted'; exception when sqlstate 'P0001' then null; end;
+  assert (select count(*) from public.admin_user_channels() where user_id = '44444444-4444-4444-4444-444444444444' and enabled) = 2, 'admin sees the effective switches';
+  assert (select enabled from public.wann_access where user_id = '44444444-4444-4444-4444-444444444444'), 'the Wann switch is mirrored for older app versions';
+end $$;
+set request.jwt.claim.sub = '44444444-4444-4444-4444-444444444444';
+do $$ declare p public.stock_positions; begin
+  assert public.my_channels() = '{wann,stocks}', 'only what the admin left on';
+  assert (select count(*) from public.stock_picks where asset = 'stock') = 1 and (select count(*) from public.stock_picks where asset = 'crypto') = 0, 'stocks on, crypto off';
+  p := public.stock_take('cccccccc-cccc-cccc-cccc-cccccccccccc');
+  assert p.amount_usd = 100, 'with the channel, the pick can be taken';
+end $$;
+reset role;
+do $$ begin
+  assert (select count(*) from public.channel_users('wann')) = 2, 'Wann goes to the admin and the member switched on';
+  assert public.wann_create_receipts('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee') = 2, 'a Wann call reaches the admin and the newly enabled member';
+  assert exists (select 1 from public.receipts where wann_call_id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee' and user_id = '44444444-4444-4444-4444-444444444444'), 'the member switched on holds it';
+  assert not exists (select 1 from public.receipts where wann_call_id = 'ffffffff-ffff-ffff-ffff-ffffffffffff' and user_id = '33333333-3333-3333-3333-333333333333'), 'no Wann for a member without the channel';
 end $$;
 rollback;
 select 'ALL ASSERTIONS PASSED' as result;
