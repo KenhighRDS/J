@@ -1,6 +1,7 @@
 // Dev-only fixtures for the stock and portfolio screens:
 //   /__preview/stocks   /__preview/stock?state=swing|ipo|long|closed&pos=1|sold   /__preview/portfolio?empty=1   /__preview/shell (tab bar)
 //   /__preview/admin-stocks   /__preview/settings   /__preview/amount (the one-time question)
+//   /__preview/crypto   /__preview/coin?state=swing|long|listing&pos=1   (what the rules produced when replayed on 10 July 2025)
 import { Route, Routes } from "react-router-dom";
 import { Shell } from "../components/Shell";
 import { StockRoute, StocksList } from "./Stocks";
@@ -45,12 +46,31 @@ const picks = [ipo, base, long, closed, stopped];
 const position: StockPosition = { id: "p1", user_id: "u", pick_id: "k1", amount_usd: 500, buy_price: 113.05, bought_at: ago(3), sell_price: null, sold_at: null };
 const positions: StockPosition[] = [position, { ...position, id: "p3", pick_id: "k3", amount_usd: 1200, buy_price: 142 }, { ...position, id: "p4", pick_id: "k4", amount_usd: 400, buy_price: 61.9, sell_price: 71.1, sold_at: ago(6) }];
 
+// Crypto fixtures: the picks the shipped rules build when replayed on the candles of 10 July 2025.
+const xrp: StockPick = { ...base, id: "x1", asset: "crypto", symbol: "XRP", name: "XRP", exchange: "Crypto", industry: "Layer 1 (L1)", website: "https://xrpl.org/", kind: "catalyst", horizon: "swing",
+  headline: "Closed at its highest close in 56 days, up 6% on 2× its usual volume.",
+  description: "XRP is the native digital asset of the XRP Ledger, an open-source, public blockchain built for payments. It settles transactions in a few seconds for a fraction of a cent, and is used to move money across borders and between currencies.",
+  reasons: [{ label: "Highest close in 56 days", detail: "Closed at $2.55, above every daily close since 14 May." }, { label: "Volume 2× normal", detail: "$518M traded on the day, against its 20-day average." }, { label: "Buyers in control", detail: "Up 6% on the day, closing in the top quarter of the day's range." }, { label: "Stronger than Bitcoin", detail: "+10.4% over 30 days, against +5.2% for Bitcoin." }],
+  risks: ["Breakouts fail often: if it closes back under the old high, the move is probably over.", "Crypto moves fast. A fall of 20% in a day is normal for this market."],
+  facts: [{ label: "Market value", value: "$150B" }, { label: "Rank by value", value: "#4" }, { label: "Traded per day", value: "$518M" }, { label: "Price vs 30 days ago", value: "+10.4%" }, { label: "Bitcoin, 30 days", value: "+5.2%" }, { label: "Below its all-time high", value: "33.2%" }, { label: "Listed on Binance", value: "7 years ago" }, { label: "Supply in circulation", value: "59%" }],
+  investors: [], score: 74, entry_price: 2.5471, buy_below: 2.649, stop_price: 2.3036, target_price: 3.0341, last_price: 2.7312, sent_at: ago(3), last_price_at: ago(0, 1), expires_at: new Date(Date.now() + 18 * 864e5).toISOString() };
+const btcPick: StockPick = { ...xrp, id: "x2", symbol: "BTC", name: "Bitcoin", website: "http://www.bitcoin.org", horizon: "long", headline: "Back in an uptrend: its highest close in over 9 months, on 2.1× its usual volume.",
+  description: "Bitcoin is the world's first decentralized cryptocurrency, created in 2009 by the pseudonymous Satoshi Nakamoto. It enables peer-to-peer electronic cash transactions without intermediaries like banks, and its supply is capped at 21 million coins.",
+  reasons: [{ label: "Highest close in over 9 months", detail: "Closed at $116,010, above every daily close since 25 Oct 2024." }, { label: "Volume 2.1× normal", detail: "$2.8B traded on the day, against its 20-day average." }, { label: "In an uptrend", detail: "Above its 50-day and 200-day averages, with the 50-day on top." }],
+  risks: ["Breakouts fail often: if it closes back under the old high, the move is probably over.", "Crypto moves fast. A fall of 20% in a day is normal for this market.", "A long-term hold has no stop: crypto bear markets have taken even the biggest coins down by more than half."],
+  facts: [{ label: "Market value", value: "$2.31T" }, { label: "Rank by value", value: "#1" }, { label: "Traded per day", value: "$2.8B" }, { label: "Price vs 30 days ago", value: "+5.2%" }, { label: "Listed on Binance", value: "8 years ago" }, { label: "Supply in circulation", value: "95%" }],
+  investors: [{ name: "Strategy", firm: "850,363 BTC", value_usd: 57_153_744_123, shares: 850363, pct: 4.049, period: "2026-11-14" }, { name: "Metaplanet", firm: "44,000 BTC", value_usd: 2_957_283_820, shares: 44000, pct: 0.21, period: "2026-11-14" }, { name: "Twenty One Capital", firm: "43,514 BTC", value_usd: 2_924_619_276, shares: 43514, pct: 0.207, period: "2026-11-14" }],
+  score: 80, entry_price: 116010, buy_below: 121810, stop_price: null, target_price: null, last_price: 118240, sent_at: ago(5) };
+const listing: StockPick = { ...xrp, id: "x3", symbol: "PEPE", name: "Pepe", kind: "ipo", industry: "Meme", headline: "Listed 9 weeks ago, holding 61% above its first day and 3.2% from its high.", investors: [], entry_price: 0.00001234, buy_below: 0.00001283, stop_price: 0.00001012, target_price: 0.00001678, last_price: 0.00001301, score: 72, sent_at: ago(1) };
+const coins = [listing, xrp, btcPick];
+const coinPos: StockPosition = { id: "cp1", user_id: "u", pick_id: "x1", amount_usd: 100, buy_price: 2.56, bought_at: ago(3), sell_price: null, sold_at: null };
+
 const sig = (o: Partial<Signal>): Signal => ({ id: "s1", ea_source_id: null, ea_uid: null, source_name: "J", symbol: "XAUUSD", base_symbol: "XAUUSD", direction: "buy", order_type: "market", entry: 4012.4, sl: 4002.4, tp: 4032.4, ea_lot: 0.1, digits: 2, point: 0.01, pip_size: 0.1,
   tick_size: 0.01, tick_value: 1, contract_size: 100, vol_min: 0.01, vol_step: 0.01, vol_max: 100, account_currency: "USD", status: "closed", expires_at: null, triggered_at: null, trigger_price: null, closed_at: ago(2), close_price: 4032.4, result_pips: 200, outcome: "win", close_reason: "tp", is_test: false, sent_at: ago(2, 3), created_at: ago(2, 3), ...o });
 const rec = (o: Partial<Receipt>): Receipt => ({ id: "r1", signal_id: "s1", wann_call_id: null, user_id: "u", kind: "ea", delivered_at: null, opened_at: null, copied: {}, status: "taken", status_source: "swipe", user_lot: 0.12, ring_count: 1, question_sent_at: null, answered_at: null, user_entry: null, user_close: null, user_pips: null, stake_usd: null, payout_usd: null, profit_usd: null, ...o });
 const call = (o: Partial<WannCall>): WannCall => ({ id: "c1", wann_game_id: 1, sport: "Football", competition: "La Liga", home: "Real Madrid", away: "Getafe", kickoff_utc: ago(1), pick: "home", pick_label: "Real Madrid wins", probability: 93.1, call_type: "straight", status: "finished", final_score: "3–0", outcome: "won", sent_at: ago(2), created_at: ago(2), ...o });
 const portfolio: PortfolioData = {
-  stocks: positions.map((p) => ({ ...p, pick: picks.find((k) => k.id === p.pick_id) ?? null })),
+  stocks: [...positions.map((p) => ({ ...p, pick: picks.find((k) => k.id === p.pick_id) ?? null })), { ...coinPos, pick: xrp }],
   ea: [
     { ...rec({}), signal: sig({}) },
     { ...rec({ id: "r2", signal_id: "s2", user_lot: 0.3 }), signal: sig({ id: "s2", symbol: "USDJPY", base_symbol: "USDJPY", direction: "sell", digits: 3, pip_size: 0.01, tick_size: 0.001, tick_value: 0.65, result_pips: -18.4, outcome: "loss", close_reason: "sl", closed_at: ago(5), sent_at: ago(5, 2) }) },
@@ -67,10 +87,12 @@ const portfolio: PortfolioData = {
 };
 const frame = (child: React.ReactNode) => <div className="app-frame"><div className="scroll-area">{child}</div></div>;
 
-export function isStocksPreview(pathname: string): boolean { return /^\/__preview\/(stocks|stock|portfolio|shell|admin-stocks|settings|amount)$/.test(pathname); }
+export function isStocksPreview(pathname: string): boolean { return /^\/__preview\/(stocks|stock|portfolio|shell|admin-stocks|settings|amount|crypto|coin)$/.test(pathname); }
 export function StocksPreview({ pathname, params }: { pathname: string; params: URLSearchParams }) {
   if (pathname === "/__preview/settings") return <Routes><Route path="/__preview/settings" element={<Shell profile={{ ...profile, default_amount_set_at: "2026-11-13T00:00:00Z" }} />}><Route index element={<Settings profile={{ ...profile, default_amount: 100 }} reload={async () => undefined} />} /></Route></Routes>;
   if (pathname === "/__preview/amount") return <Routes><Route path="/__preview/amount" element={<Shell profile={{ ...profile, default_amount: 100, default_amount_set_at: null }} previewAsk />}><Route index element={<StocksList profile={profile} preview={{ picks, positions }} />} /></Route></Routes>;
+  if (pathname === "/__preview/crypto") return <Routes><Route path="/__preview/crypto" element={<Shell profile={{ ...profile, default_amount_set_at: "2026-11-13T00:00:00Z" }} />}><Route index element={<StocksList profile={profile} asset="crypto" preview={params.get("empty") ? { picks: [], positions: [] } : { picks: coins, positions: [coinPos] }} />} /></Route></Routes>;
+  if (pathname === "/__preview/coin") { const st = params.get("state") ?? "swing"; const k = st === "long" ? btcPick : st === "listing" ? listing : xrp; return frame(<StockRoute profile={profile} asset="crypto" preview={{ pick: k, position: params.get("pos") ? { ...coinPos, pick_id: k.id, buy_price: k.entry_price } : null }} />); }
   if (pathname === "/__preview/shell") return <Routes><Route path="/__preview/shell" element={<Shell profile={{ ...profile, default_amount_set_at: "2026-11-13T00:00:00Z" }} />}><Route index element={<StocksList profile={profile} preview={{ picks, positions }} />} /></Route></Routes>;
   if (pathname === "/__preview/admin-stocks") return frame(<div className="mx-auto w-full max-w-md pb-6"><PageTitle>Admin</PageTitle><div className="px-4"><AdminStocks preview={{
     keys: { finnhub_key: true, massive_key: false, sec_contact: "owner@example.com" },

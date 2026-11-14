@@ -26,6 +26,7 @@ export function Admin({ me }: { me: Profile }) {
         <Route path="backtest" element={<Backtest />} />
         <Route path="wann" element={<WannReport />} />
         <Route path="stocks" element={<AdminStocks />} />
+        <Route path="crypto" element={<AdminStocks key="crypto" asset="crypto" />} />
       </Route>
     </Routes>
   );

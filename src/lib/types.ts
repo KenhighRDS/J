@@ -55,7 +55,7 @@ export interface StockReason { label: string; detail: string }
 export interface StockFact { label: string; value: string }
 export interface StockInvestor { name: string; firm: string; value_usd: number; shares: number | null; pct: number | null; period: string | null }
 export interface StockPick {
-  id: string; symbol: string; name: string; exchange: string | null; industry: string | null; logo_url: string | null; website: string | null;
+  id: string; asset?: "stock" | "crypto"; symbol: string; name: string; exchange: string | null; industry: string | null; logo_url: string | null; website: string | null;
   kind: "ipo" | "catalyst"; horizon: "swing" | "long"; headline: string; description: string | null;
   reasons: StockReason[]; risks: string[]; facts: StockFact[]; investors: StockInvestor[]; score: number;
   entry_price: number; buy_below: number | null; stop_price: number | null; target_price: number | null;

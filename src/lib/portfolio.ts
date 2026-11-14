@@ -2,7 +2,7 @@
 // took (stake). Pure functions over rows the app already loads; nothing here is stored.
 import type { Receipt, Signal, StockPick, StockPosition, WannCall } from "./types";
 
-export type LineKind = "stock" | "ea" | "wann";
+export type LineKind = "stock" | "crypto" | "ea" | "wann";
 export interface PortfolioLine {
   key: string; kind: LineKind; title: string; sub: string; route: string; at: string;
   open: boolean;                 // still running (not sold / not closed / not played)
@@ -41,7 +41,7 @@ export function stockLine(pos: StockPosition, k: StockPick): PortfolioLine {
   const value = round2(shares * px), pnl = round2(value - pos.amount_usd);
   const state = sold ? "Sold" : k.status === "closed" ? "Pick closed — still holding?" : k.horizon === "long" ? "Long-term" : "Swing";
   return {
-    key: `stock-${pos.id}`, kind: "stock", title: k.symbol, sub: `${k.name} · ${state}`, route: `/stocks/${k.id}`, at: pos.sold_at ?? pos.bought_at,
+    key: `stock-${pos.id}`, kind: k.asset === "crypto" ? "crypto" : "stock", title: k.symbol, sub: `${k.name} · ${state}`, route: `/${k.asset === "crypto" ? "crypto" : "stocks"}/${k.id}`, at: pos.sold_at ?? pos.bought_at,
     open: !sold, putIn: pos.amount_usd, value, pnl, pct: Math.round((pnl / pos.amount_usd) * 1000) / 10, estimated: false, needs: null,
   };
 }
@@ -99,12 +99,12 @@ export function wannLine(r: Receipt, c: WannCall): PortfolioLine {
 }
 
 export function totals(lines: PortfolioLine[]): PortfolioTotals {
-  const t: PortfolioTotals = { putIn: 0, value: 0, openPnl: 0, closedPnl: 0, pnl: 0, by: { stock: { pnl: 0, count: 0, unknown: 0 }, ea: { pnl: 0, count: 0, unknown: 0 }, wann: { pnl: 0, count: 0, unknown: 0 } } };
+  const t: PortfolioTotals = { putIn: 0, value: 0, openPnl: 0, closedPnl: 0, pnl: 0, by: { stock: { pnl: 0, count: 0, unknown: 0 }, crypto: { pnl: 0, count: 0, unknown: 0 }, ea: { pnl: 0, count: 0, unknown: 0 }, wann: { pnl: 0, count: 0, unknown: 0 } } };
   for (const l of lines) {
     const b = t.by[l.kind]; b.count++;
     if (l.open) {
       if (l.putIn != null) { t.putIn += l.putIn; t.value += l.value ?? l.putIn; }
-      if (l.kind === "stock" && l.pnl != null) { t.openPnl += l.pnl; b.pnl += l.pnl; }
+      if ((l.kind === "stock" || l.kind === "crypto") && l.pnl != null) { t.openPnl += l.pnl; b.pnl += l.pnl; }
       else if (l.kind === "wann" && l.putIn == null) b.unknown++;
       continue;
     }

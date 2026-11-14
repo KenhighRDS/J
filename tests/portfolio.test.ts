@@ -21,6 +21,11 @@ test("stock: value follows the latest price; a sold position keeps its sell pric
   const sold = stockLine(pos({ sell_price: 90, sold_at: "2026-11-06T15:00:00Z" }), pick({ last_price: 130 }));
   assert.deepEqual([sold.value, sold.pnl, sold.open], [450, -50, false]);
 });
+test("crypto: a position in a crypto pick is its own source and opens the crypto page", () => {
+  const l = stockLine(pos({ amount_usd: 100, buy_price: 2.5 }), pick({ asset: "crypto", symbol: "XRP", entry_price: 2.5, last_price: 2.75 }));
+  assert.deepEqual([l.kind, l.route, l.value, l.pnl], ["crypto", "/crypto/k1", 110, 10]);
+  assert.deepEqual(totals([l]).by.crypto, { pnl: 10, count: 1, unknown: 0 });
+});
 test("stock: a pick J closed is valued at its close price until the member says they sold", () => {
   const l = stockLine(pos(), pick({ status: "closed", close_price: 92, close_reason: "stop", result_pct: -8, last_price: 95 }));
   assert.deepEqual([l.value, l.pnl, l.open], [460, -40, true]);

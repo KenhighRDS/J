@@ -66,6 +66,8 @@ export default function App() {
           <Route path="/wann/:id" element={<WannRoute profile={profile} />} />
           <Route path="/stocks" element={<StocksList profile={profile} />} />
           <Route path="/stocks/:id" element={<StockRoute profile={profile} />} />
+          <Route path="/crypto" element={<StocksList profile={profile} asset="crypto" />} />
+          <Route path="/crypto/:id" element={<StockRoute profile={profile} asset="crypto" />} />
           <Route path="/portfolio" element={<Portfolio profile={profile} />} />
           <Route path="/reports" element={<Reports profile={profile} />} />
           <Route path="/reports/:id" element={<ReportRoute profile={profile} />} />

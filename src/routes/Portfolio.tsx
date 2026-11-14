@@ -15,7 +15,8 @@ export interface PortfolioData {
 }
 const tone = (v: number | null | undefined) => (v == null || v === 0 ? "" : v > 0 ? "text-buy" : "text-sell");
 const needLabel = { amount: "Add amount", payout: "Add payout", lot: "Add lot" } as const;
-const sourceLabel: Record<LineKind, string> = { stock: "Stocks", ea: "J trades", wann: "Wann calls" };
+const sourceLabel: Record<LineKind, string> = { stock: "Stocks", crypto: "Crypto", ea: "J trades", wann: "Wann calls" };
+const rowLabel: Record<LineKind, string> = { stock: "Stock", crypto: "Crypto", ea: "J trade", wann: "Wann call" };
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** Everything the member took, in money: stocks (what they put in), J trades (their lot) and Wann calls (their stake). */
@@ -54,14 +55,14 @@ export function Portfolio({ profile, preview }: { profile: Profile; preview?: Po
   const shown = lines.filter((l) => l.open === (tab === "open"));
   const counts = { open: lines.filter((l) => l.open).length, closed: lines.filter((l) => !l.open).length };
   const unknownNote = (k: LineKind) => { const u = t.by[k].unknown; return u ? `, ${u} without ${k === "ea" ? "a lot" : "an amount"}` : ""; };
-  const unit: Record<LineKind, [string, string]> = { stock: ["position", "positions"], ea: ["trade", "trades"], wann: ["call", "calls"] };
+  const unit: Record<LineKind, [string, string]> = { stock: ["position", "positions"], crypto: ["position", "positions"], ea: ["trade", "trades"], wann: ["call", "calls"] };
 
   return (
     <div className="mx-auto w-full max-w-md pb-6">
       <header className="flex h-12 items-center px-4"><Link to="/stocks" className="focus-ring -ml-2 flex h-11 items-center gap-1 px-2 text-[15px] text-muted"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M15 5l-7 7 7 7" /></svg>Stocks</Link></header>
       <PageTitle>Portfolio</PageTitle>
       {lines.length === 0 ? (
-        <Empty title="Nothing in your portfolio yet" body="Take a signal, a Wann call or a stock pick and it shows here with what it made." action={<Link to="/stocks" className="focus-ring inline-flex h-12 items-center rounded-[14px] border border-border px-5 text-[15px]">See stock picks</Link>} />
+        <Empty title="Nothing in your portfolio yet" body="Take a signal, a Wann call, a stock or a crypto pick and it shows here with what it made." action={<Link to="/stocks" className="focus-ring inline-flex h-12 items-center rounded-[14px] border border-border px-5 text-[15px]">See stock picks</Link>} />
       ) : (
         <>
           <section className="px-5">
@@ -72,7 +73,7 @@ export function Portfolio({ profile, preview }: { profile: Profile; preview?: Po
 
           <section className="mt-6 px-4">
             <ul className="divide-y divide-border rounded-[16px] border border-border bg-surface">
-              {(["stock", "ea", "wann"] as LineKind[]).filter((k) => t.by[k].count > 0).map((k) => (
+              {(["stock", "crypto", "ea", "wann"] as LineKind[]).filter((k) => t.by[k].count > 0).map((k) => (
                 <li key={k} className="flex items-center gap-3 px-4 py-3">
                   <div className="min-w-0 flex-1"><p className="text-[15px]">{sourceLabel[k]}</p><p className="text-[13px] text-muted">{plural(t.by[k].count, unit[k][0], unit[k][1])}{unknownNote(k)}</p></div>
                   <span className={`font-mono tabular text-[17px] ${tone(t.by[k].pnl)}`}>{money(t.by[k].pnl)}</span>
@@ -91,7 +92,7 @@ export function Portfolio({ profile, preview }: { profile: Profile; preview?: Po
                   <li key={l.key} className="flex items-center gap-3 px-4 py-3">
                     <Link to={l.route} className="focus-ring min-w-0 flex-1">
                       <p className="truncate text-[15px]">{l.title}</p>
-                      <p className="truncate text-[13px] text-muted">{sourceLabel[l.kind].replace(/s$/, "")} · {l.sub}</p>
+                      <p className="truncate text-[13px] text-muted">{rowLabel[l.kind]} · {l.sub}</p>
                     </Link>
                     {l.needs && receipts[l.key] ? (
                       <button type="button" onClick={() => setEdit(receipts[l.key])} className="focus-ring h-9 shrink-0 rounded-full border border-border px-3 text-[13px]">{needLabel[l.needs]}</button>
@@ -105,7 +106,7 @@ export function Portfolio({ profile, preview }: { profile: Profile; preview?: Po
                 ))}
               </ul>
             )}
-            <p className="mt-3 px-1 text-[13px] leading-snug text-muted">Stocks use the latest price J has. J trades use your linked MT5 account when there is one, otherwise your lot and the pips. Wann calls and stocks use your amount (Settings, Default amount); a Wann win is worked out from Wann's probability. Tap a figure to correct it.</p>
+            <p className="mt-3 px-1 text-[13px] leading-snug text-muted">Stocks and crypto use the latest price J has. J trades use your linked MT5 account when there is one, otherwise your lot and the pips. Wann calls, stocks and crypto use your amount (Settings, Default amount); a Wann win is worked out from Wann's probability. Tap a figure to correct it.</p>
           </section>
         </>
       )}

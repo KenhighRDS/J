@@ -1,14 +1,21 @@
 // Display helpers for stock picks.
 import type { StockPick } from "./types";
 
-export const kindLabel: Record<StockPick["kind"], string> = { ipo: "New listing", catalyst: "Fresh event" };
+export type Asset = "stock" | "crypto";
+export const assetOf = (k: Pick<StockPick, "asset">): Asset => (k.asset === "crypto" ? "crypto" : "stock");
+/** Where an asset's screens live: /stocks or /crypto. */
+export const baseOf = (asset: Asset) => (asset === "crypto" ? "/crypto" : "/stocks");
+const kinds: Record<Asset, Record<StockPick["kind"], string>> = { stock: { ipo: "New listing", catalyst: "Fresh event" }, crypto: { ipo: "New listing", catalyst: "Fresh breakout" } };
+export const kindLabel = (k: Pick<StockPick, "asset" | "kind">) => kinds[assetOf(k)][k.kind];
 export const horizonLabel: Record<StockPick["horizon"], string> = { swing: "Swing trade", long: "Long-term hold" };
 export const closeLabel: Record<NonNullable<StockPick["close_reason"]>, string> = { target: "Target hit", stop: "Stop hit", time: "Time ran out", manual: "Closed by J" };
 
-/** Share price: "$112.40"; sub-dollar prices keep four decimals. */
+/** A price: "$67,171", "$112.40", "$0.4521", "$0.00001235". Under a dollar it keeps four significant figures. */
 export function usd(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return "–";
-  return "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: Math.abs(v) < 1 ? 4 : 2 });
+  if (Math.abs(v) < 1 && v !== 0) return "$" + Number(v.toPrecision(4)).toString();
+  if (Math.abs(v) >= 10000) return "$" + v.toLocaleString("en-US", { maximumFractionDigits: 0 });   // cents mean nothing on a $118,240 coin
+  return "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 /** Large amounts: "$2.1B", "$340M", "$85K". */
 export function bigUsd(v: number | null | undefined): string {
