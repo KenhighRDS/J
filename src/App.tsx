@@ -18,6 +18,7 @@ import { WannList, WannRoute } from "./routes/Wann";
 import { StocksList, StockRoute } from "./routes/Stocks";
 import { Portfolio } from "./routes/Portfolio";
 import { useChannels } from "./lib/useChannels";
+import { hasForex, homeFor } from "./lib/channels";
 import { Reports } from "./routes/Reports";
 import { ReportRoute } from "./routes/Report";
 import { Settings } from "./routes/Settings";
@@ -55,7 +56,9 @@ export default function App() {
       </Routes>
     );
   }
-  if (!profile) return <div className="app-frame items-center justify-center"><Spinner /></div>;
+  // wait for the member's signals too: the routes below depend on them, and a notification link must not be lost meanwhile
+  if (!profile || channels == null) return <div className="app-frame items-center justify-center"><Spinner /></div>;
+  const home = homeFor(channels);
   return (
     <BiometricGate>
       <AndroidBar />
@@ -63,10 +66,10 @@ export default function App() {
       <UpdateSheet />
       <Routes>
         <Route element={<Shell profile={profile} reload={reload} channels={channels} />}>
-          <Route index element={<Home profile={profile} channels={channels} />} />
+          <Route index element={hasForex(channels) ? <Home profile={profile} channels={channels} /> : <Navigate to={home} replace />} />
           <Route path="/signal/:id" element={<SignalRoute profile={profile} reloadProfile={reload} />} />
-          <Route path="/wann" element={<WannList profile={profile} />} />
-          <Route path="/wann/:id" element={<WannRoute profile={profile} />} />
+          {has("wann") && <Route path="/wann" element={<WannList profile={profile} />} />}
+          {has("wann") && <Route path="/wann/:id" element={<WannRoute profile={profile} />} />}
           {has("stocks") && <Route path="/stocks" element={<StocksList profile={profile} />} />}
           {has("stocks") && <Route path="/stocks/:id" element={<StockRoute profile={profile} />} />}
           {has("crypto") && <Route path="/crypto" element={<StocksList profile={profile} asset="crypto" />} />}
@@ -79,7 +82,7 @@ export default function App() {
           <Route path="/login/*" element={<Navigate to="/" replace />} />
           <Route path="/settings/alerts" element={<Alerts />} />
           <Route path="/settings/tracker" element={<Tracker profile={profile} reload={reload} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to={home} replace />} />
         </Route>
       </Routes>
     </BiometricGate>
