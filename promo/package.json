@@ -19,7 +19,10 @@
     "shots:wann": "node scripts/capture-wann.cjs",
     "render:wann": "remotion render src/index.ts JWann out/j-wann.mp4 --codec h264 --crf 17 --overwrite",
     "audio:rds": "node scripts/gen-audio-rds.mjs",
-    "render:rds": "remotion render src/index.ts JStocks out/j-stocks-rds.mp4 --codec h264 --crf 17 --overwrite"
+    "render:rds": "remotion render src/index.ts JStocks out/j-stocks-rds.mp4 --codec h264 --crf 17 --overwrite",
+    "audio:crypto": "node scripts/gen-audio-crypto.mjs",
+    "shots:crypto": "node scripts/capture-crypto.cjs",
+    "render:crypto": "remotion render src/index.ts JCrypto out/j-crypto-rds.mp4 --codec h264 --crf 17 --overwrite"
   },
   "dependencies": {
     "@remotion/cli": "^4.0.541",

@@ -58,3 +58,24 @@ The skills that guided it are in `.claude/skills/remotion-motion-graphics` and `
 - **What is on screen is real:** the example pick is the one the live scan built on 13 Nov 2026 (Wolverine World
   Wide), and the Buffett figures are Berkshire Hathaway's 30 June 2026 filing. The two past calls (Coca-Cola 2024,
   Apple 2024) are RDS Academy's own statement and carry no performance figures. Do not add calls that were not made.
+
+## Crypto video with RDS Academy (`JCrypto`)
+
+90 seconds, vertical, no voice and no music: the crypto picks feature, presented as RDS Academy × J and ending on
+"Invite only. Ask RDS Academy for an invite."
+
+- **Look:** a night sky, because this market never closes. Deep navy, one gold (the RDS yellow) for the coin and for
+  the thing to look at, the RDS logo on a moon (its lettering is dark, so it needs a light ground and stays
+  untouched). The motif is a ping, a ring spreading from a point as on a radar; the cut between scenes is the same
+  ring closing and opening like an aperture. Headlines in Bricolage Grotesque, figures in the app's mono.
+- **The app on screen is the real one:** `npm run shots:crypto` captures the Crypto tab, a swing pick, a long-term
+  pick and the portfolio from the app's dev previews into `public/ui/crypto/` (with `layout.json`, where each section
+  starts). Pick pages are captured at full height so the video can scroll them.
+- **Sound:** `npm run audio:crypto` writes the quiet effect kit to `public/sfx-crypto/`.
+- **Render:** `npm run render:crypto` → `out/j-crypto-rds.mp4`. `node scripts/stills.mjs JCrypto <dir> <frames…>`
+  renders single frames for a check.
+- **Nothing on screen is a claimed result.** The picks are the app's preview examples and carry an "Example" tag in
+  every scene that shows them: the XRP pick is what the rules produce replayed on 10 July 2025, and the companies
+  holding Bitcoin are CoinGecko's public figures of 14 November 2026. The scan scene shows what the rules do (90
+  coins checked, at most a couple sent, some days none). Do not add past calls or returns that did not happen.
+
