@@ -147,6 +147,18 @@ def cmd_walkforward(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_lab(args: argparse.Namespace) -> int:
+    from .lab.run import run_all, table
+    data = _data(args)
+    res = run_all({s: d for s, d in data.items() if s in ("ES", "NQ")})
+    res["provenance"] = {s: d.provenance for s, d in data.items()}
+    Path(args.out).mkdir(parents=True, exist_ok=True)
+    Path(args.out, "edge.json").write_text(json.dumps(res, indent=1))
+    print(table(res))
+    print(f"  file: {args.out}/edge.json")
+    return 0
+
+
 def cmd_worker(args: argparse.Namespace) -> int:
     from .worker import Link, Worker, load_data
     w = Worker(Link(), load_data(args.data, args.source, args.roll_method))
@@ -210,6 +222,13 @@ def main(argv: list[str] | None = None) -> int:
     k.add_argument("--every", type=float, default=20.0, help="seconds between check-ins")
     k.add_argument("--once", action="store_true", help="check in once, do at most one job, and exit")
     k.set_defaults(fn=cmd_worker)
+
+    lab = sub.add_parser("lab", help="the seven published strategies of docs/tjr/edge-protocol.md, on ES and NQ")
+    lab.add_argument("--data", nargs="+", required=True, metavar="SYMBOL=FILE")
+    lab.add_argument("--source", default="")
+    lab.add_argument("--roll-method", default="")
+    lab.add_argument("--out", default="reports/edge")
+    lab.set_defaults(fn=cmd_lab)
 
     d = sub.add_parser("defaults", help="print the default settings as JSON (the J app's builder starts from these)")
     d.set_defaults(fn=lambda _a: print(json.dumps({"rules_version": RULES_VERSION, "models": MODELS, "config": Config().to_dict()}, indent=1)) or 0)
