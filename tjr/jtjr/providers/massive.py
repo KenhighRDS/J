@@ -13,12 +13,9 @@ The Basic (free) plan allows 5 calls a minute; this client waits between calls a
 """
 from __future__ import annotations
 
-import json
 import os
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -26,7 +23,7 @@ from ..clock import iso, to_ts
 from ..data import write_csv
 from ..types import Bar
 
-BASE = "https://api.massive.com"
+HOST = "api.massive.com"
 MONTHS = {3: "H", 6: "M", 9: "U", 12: "Z"}
 
 
@@ -58,6 +55,10 @@ def front_contracts(root: str, start: int, end: int, roll_days: int = 4) -> list
 
 
 class Massive:
+    """Talks to one fixed host over HTTPS and nothing else: paths come from this module or from the `next_url` the API
+    returns, and of a `next_url` only the path and query are used, so a response can never point the client at another
+    host or at a local file."""
+
     def __init__(self, key: str | None = None, calls_per_minute: float = 5.0) -> None:
         self.key = key or os.environ.get("MASSIVE_API_KEY") or ""
         if not self.key:
@@ -66,35 +67,45 @@ class Massive:
         self._last = 0.0
         self.calls = 0
 
-    def _get(self, url: str) -> dict:
+    def _get(self, path: str) -> dict:
+        if not path.startswith("/futures/"):
+            raise RuntimeError(f"refusing a path outside the futures API: {path[:60]}")
+        try:
+            import requests
+        except ImportError as e:                         # pragma: no cover
+            raise RuntimeError("downloading needs the requests library: pip install 'jtjr[data]'") from e
         wait = self.gap - (time.monotonic() - self._last)
         if wait > 0:
             time.sleep(wait)
-        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {self.key}", "User-Agent": "jtjr"})
         for attempt in range(4):
             self._last = time.monotonic()
             self.calls += 1
-            try:
-                with urllib.request.urlopen(req, timeout=60) as r:
-                    return json.loads(r.read())
-            except urllib.error.HTTPError as e:
-                body = e.read().decode("utf8", "replace")[:300]
-                if e.code == 429 and attempt < 3:
-                    time.sleep(self.gap * (attempt + 2))
-                    continue
-                raise RuntimeError(f"Massive answered {e.code} for {urllib.parse.urlsplit(url).path}: {body}") from None
+            r = requests.get(f"https://{HOST}{path}", headers={"Authorization": f"Bearer {self.key}", "User-Agent": "jtjr", "Accept": "application/json"}, timeout=60, allow_redirects=False)
+            if r.status_code == 200:
+                return r.json()
+            if r.status_code == 429 and attempt < 3:
+                time.sleep(self.gap * (attempt + 2))
+                continue
+            raise RuntimeError(f"Massive answered {r.status_code} for {path.split('?')[0]}: {r.text[:300]}")
         raise RuntimeError("Massive kept answering 429 (rate limit)")
 
     def minute_bars(self, ticker: str, start: int, end: int) -> list[Bar]:
+        if not ticker.isalnum():
+            raise ValueError(f"not a contract ticker: {ticker!r}")
         q = urllib.parse.urlencode({"resolution": "1min", "window_start.gte": start * 10**9, "window_start.lt": end * 10**9, "limit": 50000, "sort": "window_start.asc"})
-        url: str | None = f"{BASE}/futures/v1/aggs/{ticker}?{q}"
+        path: str | None = f"/futures/v1/aggs/{ticker}?{q}"
         bars: list[Bar] = []
-        while url:
-            page = self._get(url)
+        while path:
+            page = self._get(path)
             for r in page.get("results") or []:
                 ts = int(r["window_start"]) // 10**9
                 bars.append(Bar(ts - ts % 60, float(r["open"]), float(r["high"]), float(r["low"]), float(r["close"]), float(r.get("volume") or 0)))
-            url = page.get("next_url")
+            nxt = page.get("next_url")
+            if nxt:
+                u = urllib.parse.urlsplit(str(nxt))
+                path = u.path + ("?" + u.query if u.query else "")
+            else:
+                path = None
         bars.sort(key=lambda b: b.ts)
         return [b for i, b in enumerate(bars) if i == 0 or b.ts != bars[i - 1].ts]
 

@@ -1,7 +1,8 @@
 # jtjr: the TJR liquidity-sweep engine for J
 
 Deterministic rules, an event-driven backtester and the simulated book that also runs paper trading. Pure Python
-(3.11+), no dependencies; `pandas` + `pyarrow` only if you feed it Parquet.
+(3.11+). The engine itself has no dependencies; `requests` is needed only to download bars, `pandas` + `pyarrow`
+only if you feed it Parquet.
 
 What the rules are, and which of them come from the source: `docs/tjr/strategy-spec.md`.
 Where data and a broker can come from, and what they cost: `docs/tjr/providers.md`.

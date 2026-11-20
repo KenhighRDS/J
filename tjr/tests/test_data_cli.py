@@ -106,3 +106,22 @@ def test_second_look_at_a_test_stretch_is_counted(tmp_path):
     again = walkforward.run(Config(), bars, {"bos_window_bars": [6]}, min_trades=1, ledger=led, data_id="d", log=lambda *_: None)
     assert (a["test_stretch_used_times"], b["test_stretch_used_times"], again["test_stretch_used_times"]) == (1, 2, 2)
     assert a["test_is_out_of_sample"] and not b["test_is_out_of_sample"]
+
+
+def test_massive_client_only_ever_talks_to_its_own_api(monkeypatch):
+    monkeypatch.setenv("MASSIVE_API_KEY", "test")
+    c = massive.Massive(calls_per_minute=6000)
+    with pytest.raises(RuntimeError, match="outside the futures API"):
+        c._get("/etc/passwd")
+    with pytest.raises(ValueError, match="not a contract ticker"):
+        c.minute_bars("../x", 0, 60)
+    pages = [{"results": [{"window_start": 120 * 10**9, "open": 1, "high": 2, "low": 1, "close": 2, "volume": 3}], "next_url": "file:///futures/v1/aggs/NQZ6?cursor=abc"},
+             {"results": [{"window_start": 60 * 10**9, "open": 1, "high": 1, "low": 1, "close": 1}]}]
+    asked = []
+    monkeypatch.setattr(c, "_get", lambda path: (asked.append(path), pages[len(asked) - 1])[1])
+    bars = c.minute_bars("NQZ6", 0, 600)
+    assert [b.ts for b in bars] == [60, 120]
+    assert asked[1] == "/futures/v1/aggs/NQZ6?cursor=abc"          # only the path of next_url is followed, on the fixed host
+    monkeypatch.delenv("MASSIVE_API_KEY")
+    with pytest.raises(RuntimeError, match="MASSIVE_API_KEY is not set"):
+        massive.Massive()
