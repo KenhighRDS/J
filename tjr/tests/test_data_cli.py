@@ -136,3 +136,8 @@ def test_grid_variants_are_bundles_tried_as_one_choice_and_parallel_equals_seria
     one = walkforward.run(Config().with_(**{"risk.start_equity": 50000.0}), bars, space, min_trades=1, log=lambda *_: None)
     four = walkforward.run(Config().with_(**{"risk.start_equity": 50000.0}), bars, space, min_trades=1, log=lambda *_: None, jobs=2)
     assert one["grid"] == four["grid"] and one["frozen"] == four["frozen"] and one["test"] == four["test"]
+
+
+def test_the_command_line_knows_which_models_read_the_other_index():
+    assert [cli.needs_smt(Config(model=m)) for m in "ABCDE"] == [False, False, True, True, True]
+    assert cli.needs_smt(Config(model="E", e_confirmations=("bos", "ifvg"))) is False

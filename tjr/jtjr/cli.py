@@ -48,6 +48,11 @@ def _data(args: argparse.Namespace) -> dict[str, Dataset]:
     return out
 
 
+def needs_smt(cfg: Config) -> bool:
+    """Does this model read the other index?"""
+    return cfg.model in ("C", "D") or (cfg.model == "E" and "smt" in cfg.e_confirmations)
+
+
 def _bars(cfg: Config, data: dict[str, Dataset], need_smt: bool) -> tuple[dict, list[int], dict]:
     fam = instrument(cfg.symbol).family
     pick = lambda want: next((d for s, d in data.items() if instrument(s).family == want), None)  # noqa: E731
@@ -90,7 +95,7 @@ def cmd_fetch(args: argparse.Namespace) -> int:
 
 def cmd_backtest(args: argparse.Namespace) -> int:
     cfg, data = _config(args), _data(args)
-    bars, rolls, prov = _bars(cfg, data, cfg.model in ("C", "D") or (cfg.model == "E" and "smt" in cfg.e_confirmations))
+    bars, rolls, prov = _bars(cfg, data, needs_smt(cfg))
     lo, hi = _span(args)
     res = backtest.run(cfg, bars, rolls=rolls, start=lo, end=hi, provenance=prov)
     out = report.write_all(res, args.out)
@@ -109,7 +114,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
     group = str(uuid.uuid4())
     for model in args.models:
         cfg = _config(args, model)
-        bars, rolls, prov = _bars(cfg, data, model in ("C", "D") or (model == "E" and "smt" in cfg.e_confirmations))
+        bars, rolls, prov = _bars(cfg, data, needs_smt(cfg))
         res = backtest.run(cfg, bars, rolls=rolls, start=lo, end=hi, provenance=prov)
         report.write_all(res, Path(args.out) / f"model-{model}")
         table[model] = {"name": MODELS[model], "experimental": cfg.experimental, "config_id": cfg.fingerprint(), "metrics": res.metrics, "rejected": res.rejected_by_reason()}
@@ -124,7 +129,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
 
 def cmd_walkforward(args: argparse.Namespace) -> int:
     cfg, data = _config(args), _data(args)
-    bars, rolls, prov = _bars(cfg, data, cfg.model in ("C", "D"))
+    bars, rolls, prov = _bars(cfg, data, needs_smt(cfg))
     space = json.loads(Path(args.grid).read_text()) if args.grid else DEFAULT_GRID
     data_id = "+".join(p["sha256"][:12] for p in prov.values())
     wf = walkforward.run(cfg, bars, space, rolls=rolls, min_trades=args.min_trades, ledger=Path(args.ledger or Path(args.out) / "test-ledger.json"), data_id=data_id, jobs=args.jobs)

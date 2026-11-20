@@ -1,0 +1,13 @@
+{
+  "variants": [
+    {"exits.target": "liquidity", "exits.target_rule": "nearest", "exits.min_rr": 2.0},
+    {"exits.target": "liquidity", "exits.target_rule": "first_with_min_rr", "exits.min_rr": 2.0},
+    {"exits.target": "liquidity", "exits.target_rule": "nearest", "exits.min_rr": 1.0},
+    {"exits.target": "r", "exits.target_r": 1.5},
+    {"exits.target": "r", "exits.target_r": 2.0},
+    {"exits.target": "r", "exits.target_r": 3.0}
+  ],
+  "exits.stop": ["sweep", "structure"],
+  "bos_pivot": [1, 2],
+  "bos_window_bars": [6, 9]
+}

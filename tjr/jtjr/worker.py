@@ -21,6 +21,10 @@ from .config import MODELS, RULES_VERSION, Config
 from .data import Dataset, load
 from .instruments import SMT_PAIR, instrument
 
+
+def needs_smt(cfg: Config) -> bool:
+    return cfg.model in ("C", "D") or (cfg.model == "E" and "smt" in cfg.e_confirmations)
+
 JOURNAL_TYPES = {"signal", "order", "fill", "cancel", "risk", "roll", "rejected"}       # what a backtest keeps in J's journal
 BATCH = 40
 
@@ -103,7 +107,7 @@ class Worker:
         if main is None:
             raise RuntimeError(f"this worker has no data file for {cfg.symbol}")
         bars, prov, rolls = {cfg.symbol: main.bars}, {cfg.symbol: main.provenance}, list(main.rolls)
-        if cfg.model in ("C", "D") or (cfg.model == "E" and "smt" in cfg.e_confirmations):
+        if needs_smt(cfg):
             other = self.data.get(cfg.smt_symbol) or pick(SMT_PAIR[fam])
             if other is None:
                 raise RuntimeError(f"model {cfg.model} needs a data file for {cfg.smt_symbol} too")
