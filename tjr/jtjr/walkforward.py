@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import itertools
 import json
+import multiprocessing
 from pathlib import Path
 
 from . import backtest
@@ -29,8 +30,24 @@ def spans(lo: int, hi: int, train: float = 0.5, valid: float = 0.25) -> dict[str
 
 
 def grid(base: Config, space: dict[str, list]) -> list[tuple[dict, Config]]:
+    """Every combination of the listed values. The special key "variants" holds whole bundles of settings that belong
+    together (a target rule with its own numbers, say), each tried as one choice."""
     keys = list(space)
-    return [(dict(zip(keys, combo)), base.with_(**dict(zip(keys, combo)))) for combo in itertools.product(*(space[k] for k in keys))]
+    out = []
+    for combo in itertools.product(*(space[k] for k in keys)):
+        params: dict = {}
+        for k, v in zip(keys, combo):
+            params.update(v if k == "variants" else {k: v})
+        out.append((params, base.with_(**params)))
+    return out
+
+
+_SHARED: dict = {}          # filled before forking, so the bars are not copied to every process
+
+
+def _train_one(i: int) -> dict:
+    cfg, (lo, hi) = _SHARED["points"][i][1], _SHARED["span"]
+    return backtest.run(cfg, _SHARED["bars"], rolls=_SHARED["rolls"], start=lo, end=hi, keep_events=False).metrics
 
 
 def _score(m: dict, min_trades: int) -> float:
@@ -44,14 +61,20 @@ def _brief(m: dict) -> dict:
 
 
 def run(base: Config, bars: dict[str, list[Bar]], space: dict[str, list], *, rolls: list[int] | None = None, min_trades: int = 20, top: int = 5,
-        ledger: str | Path | None = None, data_id: str = "", log=print) -> dict:
+        ledger: str | Path | None = None, data_id: str = "", log=print, jobs: int = 1) -> dict:
     primary = bars[base.symbol]
     cut = spans(primary[0].ts + 12 * 86400, primary[-1].end)
     points = grid(base, space)
     log(f"train {iso(cut['train'][0])[:10]}..{iso(cut['train'][1])[:10]}  validation ..{iso(cut['validation'][1])[:10]}  test ..{iso(cut['test'][1])[:10]}  ({len(points)} settings)")
     rows = []
-    for params, cfg in points:
-        m = backtest.run(cfg, bars, rolls=rolls, start=cut["train"][0], end=cut["train"][1], keep_events=False).metrics
+    if jobs > 1 and len(points) > 1:
+        _SHARED.update(points=points, bars=bars, rolls=rolls, span=cut["train"])
+        with multiprocessing.get_context("fork").Pool(jobs) as pool:
+            trained = pool.map(_train_one, range(len(points)), chunksize=1)
+        _SHARED.clear()
+    else:
+        trained = [backtest.run(cfg, bars, rolls=rolls, start=cut["train"][0], end=cut["train"][1], keep_events=False).metrics for _, cfg in points]
+    for (params, cfg), m in zip(points, trained):
         rows.append({"params": params, "train": _brief(m), "cfg": cfg})
         log(f"  train {params}: {m['trades']} trades, {m.get('expectancy_r', 0)} R")
     rows.sort(key=lambda r: -_score(r["train"], min_trades))

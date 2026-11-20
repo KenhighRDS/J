@@ -125,3 +125,14 @@ def test_massive_client_only_ever_talks_to_its_own_api(monkeypatch):
     monkeypatch.delenv("MASSIVE_API_KEY")
     with pytest.raises(RuntimeError, match="MASSIVE_API_KEY is not set"):
         massive.Massive()
+
+
+def test_grid_variants_are_bundles_tried_as_one_choice_and_parallel_equals_serial():
+    space = {"variants": [{"exits.target": "r", "exits.target_r": 1.5}, {"exits.target": "liquidity", "exits.target_rule": "first_with_min_rr"}], "bos_window_bars": [4, 6]}
+    pts = walkforward.grid(Config(), space)
+    assert len(pts) == 4 and pts[0][0] == {"exits.target": "r", "exits.target_r": 1.5, "bos_window_bars": 4}
+    assert pts[0][1].exits.target_r == 1.5 and pts[3][1].exits.target_rule == "first_with_min_rr" and pts[3][1].bos_window_bars == 6
+    bars = {"NQ": mixed(days=14)}
+    one = walkforward.run(Config().with_(**{"risk.start_equity": 50000.0}), bars, space, min_trades=1, log=lambda *_: None)
+    four = walkforward.run(Config().with_(**{"risk.start_equity": 50000.0}), bars, space, min_trades=1, log=lambda *_: None, jobs=2)
+    assert one["grid"] == four["grid"] and one["frozen"] == four["frozen"] and one["test"] == four["test"]
