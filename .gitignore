@@ -44,3 +44,12 @@ scripts/github-secrets.env
 .netlify/
 # Netlify deploy upload bundle (temporary, created by the deploy command)
 deploy-*.zip
+
+# --- TJR strategy (Python) ---
+# licensed market data and run outputs are never committed
+tjr/data/
+tjr/reports/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
