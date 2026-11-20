@@ -7,6 +7,13 @@ from typing import Literal
 
 Side = Literal["long", "short"]
 Edge = Literal["high", "low"]
+LEVEL_NAMES = {"pd": "previous day", "overnight": "overnight", "swing:60": "1-hour swing", "swing:240": "4-hour swing", "equal:15": "equal", "session:asia": "Asia",
+               "session:london": "London", "session:premarket": "premarket", "session:ny_am": "New York morning", "session:ny_pm": "New York afternoon"}
+
+
+def money(x: float) -> str:
+    """A price as people write it: 21,966.00"""
+    return f"{x:,.2f}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,7 +56,13 @@ class Level:
 
     @property
     def label(self) -> str:
+        """Machine name, stable: the app maps it to its own wording."""
         return f"{self.kind} {self.edge}"
+
+    @property
+    def name(self) -> str:
+        """The same level in words, for the reasons written into the journal."""
+        return f"{LEVEL_NAMES.get(self.kind, self.kind)} {self.edge}"
 
 
 @dataclass(slots=True)

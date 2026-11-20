@@ -141,3 +141,13 @@ def test_grid_variants_are_bundles_tried_as_one_choice_and_parallel_equals_seria
 def test_the_command_line_knows_which_models_read_the_other_index():
     assert [cli.needs_smt(Config(model=m)) for m in "ABCDE"] == [False, False, True, True, True]
     assert cli.needs_smt(Config(model="E", e_confirmations=("bos", "ifvg"))) is False
+
+
+def test_the_app_builder_starts_from_exactly_these_defaults(capsys):
+    """src/lib/tjr-defaults.json is what the J app's strategy builder shows. Regenerate it with
+    `python -m jtjr defaults > ../src/lib/tjr-defaults.json` whenever a default or a model text changes."""
+    from pathlib import Path
+    assert cli.main(["defaults"]) == 0
+    printed = json.loads(capsys.readouterr().out)
+    saved = json.loads((Path(__file__).resolve().parents[2] / "src" / "lib" / "tjr-defaults.json").read_text())
+    assert printed == saved and saved["config"]["model"] == "A" and saved["config"]["exits"]["min_rr"] == 2.0

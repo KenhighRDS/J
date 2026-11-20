@@ -1,0 +1,112 @@
+{
+ "rules_version": "0.1.0",
+ "models": {
+  "A": "Baseline: sweep + reclaim + BOS + higher low / lower high + break of the continuation candle",
+  "B": "Model A plus a validated inverse FVG",
+  "C": "Model A plus SMT divergence against the other index",
+  "D": "Model A plus inverse FVG and SMT",
+  "E": "Experimental reconstruction: 5m confirmation, 5m continuation (equilibrium or FVG), 1m confirmation"
+ },
+ "config": {
+  "model": "A",
+  "symbol": "NQ",
+  "trade_symbol": "MNQ",
+  "smt_symbol": "ES",
+  "session_start": "09:30",
+  "session_end": "11:30",
+  "flatten_at": "11:30",
+  "min_minutes_left": 10,
+  "sides": [
+   "long",
+   "short"
+  ],
+  "sessions": [
+   {
+    "name": "asia",
+    "start": "18:00",
+    "end": "03:00"
+   },
+   {
+    "name": "london",
+    "start": "03:00",
+    "end": "08:00"
+   },
+   {
+    "name": "premarket",
+    "start": "08:00",
+    "end": "09:30"
+   },
+   {
+    "name": "ny_am",
+    "start": "09:30",
+    "end": "12:00"
+   },
+   {
+    "name": "ny_pm",
+    "start": "12:00",
+    "end": "17:00"
+   }
+  ],
+  "overnight": {
+   "name": "overnight",
+   "start": "18:00",
+   "end": "09:30"
+  },
+  "use_previous_day": true,
+  "use_overnight": true,
+  "use_sessions": true,
+  "use_swings_1h": true,
+  "use_swings_4h": true,
+  "use_equal_levels": false,
+  "equal_tolerance_ticks": 4,
+  "htf_pivot": 2,
+  "level_max_age_days": 10,
+  "sweep_min_ticks": 1,
+  "reclaim_timeout_bars": 3,
+  "sweep_in_session_only": true,
+  "bos_pivot": 2,
+  "bos_window_bars": 6,
+  "setup_expiry_bars": 12,
+  "cont_pivot": 1,
+  "fvg_min_ticks": 1,
+  "ifvg_lookback_bars": 12,
+  "smt_window_bars": 6,
+  "use_ext79": false,
+  "ext79_level": 0.79,
+  "e_confirmations": [
+   "bos",
+   "ifvg",
+   "smt"
+  ],
+  "e_equilibrium": 0.5,
+  "costs": {
+   "commission_per_side": 0.61,
+   "slippage_ticks_entry": 1.0,
+   "slippage_ticks_stop": 1.0,
+   "slippage_ticks_market_exit": 1.0,
+   "limit_through_ticks": 1
+  },
+  "risk": {
+   "start_equity": 10000.0,
+   "risk_pct": 0.5,
+   "max_trades_per_day": 2,
+   "max_full_losses_per_day": 2,
+   "max_daily_loss_pct": 0.0,
+   "max_contracts": 20
+  },
+  "exits": {
+   "stop": "sweep",
+   "stop_ticks_beyond": 1,
+   "atr_mult": 1.5,
+   "target": "liquidity",
+   "target_r": 2.0,
+   "min_rr": 2.0,
+   "target_rule": "nearest",
+   "partial_at_r": 0.0,
+   "partial_fraction": 0.5,
+   "breakeven_at_r": 0.0,
+   "trail": "none",
+   "trail_after_r": 1.0
+  }
+ }
+}

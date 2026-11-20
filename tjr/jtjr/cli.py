@@ -19,7 +19,7 @@ from pathlib import Path
 
 from . import backtest, report, walkforward
 from .clock import to_ts
-from .config import MODELS, Config
+from .config import MODELS, RULES_VERSION, Config
 from .data import Dataset, load
 from .instruments import SMT_PAIR, instrument
 
@@ -210,6 +210,9 @@ def main(argv: list[str] | None = None) -> int:
     k.add_argument("--every", type=float, default=20.0, help="seconds between check-ins")
     k.add_argument("--once", action="store_true", help="check in once, do at most one job, and exit")
     k.set_defaults(fn=cmd_worker)
+
+    d = sub.add_parser("defaults", help="print the default settings as JSON (the J app's builder starts from these)")
+    d.set_defaults(fn=lambda _a: print(json.dumps({"rules_version": RULES_VERSION, "models": MODELS, "config": Config().to_dict()}, indent=1)) or 0)
 
     args = p.parse_args(argv)
     return args.fn(args)

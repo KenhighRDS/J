@@ -92,7 +92,7 @@ class Worker:
         self.link, self.data, self.log = link, data, log
 
     def info(self) -> dict:
-        return {"rules_version": RULES_VERSION, "datasets": sorted(self.data), "feed": "files only (no real-time feed configured)", "broker": "none: simulated book", "live_capable": False}
+        return {"rules_version": RULES_VERSION, "datasets": sorted(self.data), "feed": "price files only, no live feed", "broker": "none (simulated book)", "live_capable": False}
 
     def report_datasets(self) -> None:
         rows = [{"symbol": s, "source": d.provenance.get("source", ""), "first_at": d.provenance.get("first"), "last_at": d.provenance.get("last"), "rows": d.provenance.get("rows", 0),

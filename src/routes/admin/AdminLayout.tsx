@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { PageTitle } from "../../components/ui";
 
 const tabs = [
@@ -8,6 +8,7 @@ const tabs = [
   { to: "/admin/sources", label: "EA sources" },
   { to: "/admin/stocks", label: "Stocks" },
   { to: "/admin/crypto", label: "Crypto" },
+  { to: "/admin/tjr", label: "TJR" },
   { to: "/admin/push", label: "Push test" },
   { to: "/admin/settings", label: "Settings" },
   { to: "/admin/reports", label: "Reports" },
@@ -16,8 +17,9 @@ const tabs = [
 ];
 
 export function AdminLayout() {
+  const wide = useLocation().pathname.startsWith("/admin/tjr");      // charts and tables: use the room a tablet or desktop has
   return (
-    <div className="mx-auto w-full max-w-md pb-6">
+    <div className={`mx-auto w-full max-w-md pb-6 ${wide ? "md:max-w-3xl" : ""}`}>
       <PageTitle>Admin</PageTitle>
       <nav className="flex gap-1 overflow-x-auto px-4 pb-3 [scrollbar-width:none]" aria-label="Admin sections">
         {tabs.map((t) => (

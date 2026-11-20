@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from .clock import Clock, Tick, hm, in_window, window_minutes
 from .config import Config
 from .market import Market
-from .types import Bar, Confirmation, Fvg, Level, Pivot, Rejection, Signal
+from .types import Bar, Confirmation, Fvg, Level, Pivot, Rejection, Signal, money
 
 LONG, SHORT = "long", "short"
 #: which level matters most when one move sweeps several (used for the label only)
@@ -144,7 +144,7 @@ class Strategy:
             twin = o.liq.match(lv, tf)
             if twin is not None and twin.known_at <= now:
                 if twin.state == "active":
-                    return True, f"{self.cfg.symbol} swept its {lv.label}; {o.symbol} held its own ({twin.price:g})"
+                    return True, f"{self.cfg.symbol} swept its {lv.name}; {o.symbol} held its own ({money(twin.price)})"
                 continue
             # no twin level: compare the other index's own extreme around the time ours was made
             w = self.cfg.smt_window_bars * 300
@@ -153,9 +153,9 @@ class Strategy:
             if not ref or not after:
                 continue
             if lv.edge == "low" and min(b.low for b in after) > min(b.low for b in ref):
-                return True, f"{self.cfg.symbol} swept its {lv.label}; {o.symbol} stayed above its low of that time"
+                return True, f"{self.cfg.symbol} swept its {lv.name}; {o.symbol} stayed above its low of that time"
             if lv.edge == "high" and max(b.high for b in after) < max(b.high for b in ref):
-                return True, f"{self.cfg.symbol} swept its {lv.label}; {o.symbol} stayed below its high of that time"
+                return True, f"{self.cfg.symbol} swept its {lv.name}; {o.symbol} stayed below its high of that time"
         return False, f"{o.symbol} took out its level too"
 
     # ------------------------------------------------------------------ 5-minute close
@@ -216,7 +216,8 @@ class Strategy:
             return self._reject(None, "session", "sweep outside the trading session", b.end, side, levels=names)
         self._ids += 1
         s = Setup(self._ids, side, list(levels), breach, b.end, idx, extreme, leg=b.high if side == LONG else b.low)
-        self._confirm(s, "sweep", b.end, extreme, 5, f"took {', '.join(names)} and closed back {'above' if side == LONG else 'below'}")
+        said = ", ".join(lv.name for lv in sorted(levels, key=_rank))
+        self._confirm(s, "sweep", b.end, extreme, 5, f"took the {said} and closed back {'above' if side == LONG else 'below'}")
         s.bos_ref = self._structure(side, breach, idx)
         if s.bos_ref is None and cfg.model != "E":
             return self._reject(s, "structure", "no confirmed swing to break", b.end)
@@ -230,7 +231,7 @@ class Strategy:
             assert ref is not None
             if (long and b.close > ref.price) or (not long and b.close < ref.price):
                 s.stage, s.bos_index = "bos", idx
-                self._confirm(s, "bos", b.end, ref.price, 5, f"5m close {'above' if long else 'below'} the swing at {ref.price:g}")
+                self._confirm(s, "bos", b.end, ref.price, 5, f"5-minute close {'above' if long else 'below'} the swing at {money(ref.price)}")
             elif idx - s.sweep_index >= cfg.bos_window_bars:
                 self._reject(s, "bos", f"no break of structure within {cfg.bos_window_bars} bars", b.end)
             return
@@ -243,18 +244,18 @@ class Strategy:
                 first = s.cont is None
                 s.cont, s.cont_bar, s.stage = p, bar, "cont"
                 if first:
-                    self._confirm(s, "higher_low" if long else "lower_high", p.confirmed_at, p.price, 5, f"pullback held at {p.price:g}, inside the sweep extreme {s.extreme:g}")
+                    self._confirm(s, "higher_low" if long else "lower_high", p.confirmed_at, p.price, 5, f"pullback held at {money(p.price)}, inside the sweep extreme {money(s.extreme)}")
         if s.stage != "cont" or s.cont_bar is None or s.cont is None or idx <= s.cont.index:
             return
         if not ((long and b.close > s.cont_bar.high) or (not long and b.close < s.cont_bar.low)):
             return
         edge = s.cont_bar.high if long else s.cont_bar.low
-        self._confirm(s, "candle_break", b.end, edge, 5, f"5m close {'above' if long else 'below'} the continuation candle ({edge:g})")
+        self._confirm(s, "candle_break", b.end, edge, 5, f"5-minute close {'above' if long else 'below'} the continuation candle ({money(edge)})")
         if cfg.model in ("B", "D"):
             g = self._ifvg(s, b.end)
             if g is None:
                 return self._reject(s, "confirmation", "no inverse FVG by the time of the entry trigger", b.end)
-            self._confirm(s, "ifvg", g.inverted_at or b.end, g.top if long else g.bottom, 5, f"closed through the opposing gap {g.bottom:g}-{g.top:g}", top=g.top, bottom=g.bottom, since=g.ts)
+            self._confirm(s, "ifvg", g.inverted_at or b.end, g.top if long else g.bottom, 5, f"closed through the opposing gap {money(g.bottom)} to {money(g.top)}", top=g.top, bottom=g.bottom, since=g.ts)
         if cfg.model in ("C", "D"):
             ok, why = self.smt(s, b.end)
             if not ok:
@@ -270,10 +271,10 @@ class Strategy:
             ref, hit = s.bos_ref, ""
             if "bos" in cfg.e_confirmations and ref is not None and ((long and b.close > ref.price) or (not long and b.close < ref.price)):
                 hit = "bos"
-                self._confirm(s, "bos", b.end, ref.price, 5, f"5m close beyond the swing at {ref.price:g}")
+                self._confirm(s, "bos", b.end, ref.price, 5, f"5-minute close beyond the swing at {money(ref.price)}")
             if not hit and "ifvg" in cfg.e_confirmations and (g := self._ifvg(s, b.end)) is not None:
                 hit = "ifvg"
-                self._confirm(s, "ifvg", g.inverted_at or b.end, g.top if long else g.bottom, 5, f"closed through the opposing gap {g.bottom:g}-{g.top:g}")
+                self._confirm(s, "ifvg", g.inverted_at or b.end, g.top if long else g.bottom, 5, f"closed through the opposing gap {money(g.bottom)} to {money(g.top)}")
             if not hit and "smt" in cfg.e_confirmations:
                 ok, why = self.smt(s, b.end)
                 if ok:
@@ -283,7 +284,7 @@ class Strategy:
                 line = s.extreme + (ref.price - s.extreme) * cfg.ext79_level
                 if (long and b.close >= line) or (not long and b.close <= line):
                     hit = "ext79"
-                    self._confirm(s, "ext79", b.end, line, 5, f"5m close past {cfg.ext79_level:.0%} of the leg into the sweep ({line:g}); anchors are a hypothesis")
+                    self._confirm(s, "ext79", b.end, line, 5, f"5-minute close past {cfg.ext79_level:.0%} of the leg into the sweep ({money(line)}); anchors are a hypothesis")
             if hit:
                 s.stage, s.bos_index = "conf5", idx
                 s.leg = b.high if long else b.low
@@ -295,10 +296,10 @@ class Strategy:
             gap = next((g for g in reversed(self.m.gaps5.gaps) if g.side == s.side and g.inverted_at is None and s.breach_ts <= g.ts and g.known_at <= b.ts), None)
             if (long and b.low <= eq) or (not long and b.high >= eq):
                 s.stage, s.cont_ts = "cont5", b.end
-                self._confirm(s, "equilibrium", b.end, eq, 5, f"pulled back to the middle of the leg ({eq:g})")
+                self._confirm(s, "equilibrium", b.end, eq, 5, f"pulled back to the middle of the leg ({money(eq)})")
             elif gap is not None and ((long and b.low <= gap.top and b.close >= gap.bottom) or (not long and b.high >= gap.bottom and b.close <= gap.top)):
                 s.stage, s.cont_ts = "cont5", b.end
-                self._confirm(s, "fvg_retest", b.end, gap.top if long else gap.bottom, 5, f"came back into the gap {gap.bottom:g}-{gap.top:g} and held")
+                self._confirm(s, "fvg_retest", b.end, gap.top if long else gap.bottom, 5, f"came back into the gap {money(gap.bottom)} to {money(gap.top)} and held")
             else:
                 s.leg = max(s.leg, b.high) if long else min(s.leg, b.low)
 
@@ -315,10 +316,10 @@ class Strategy:
             want = "high" if long else "low"
             ref = next((p for p in reversed(self.m.swings1) if p.edge == want and p.confirmed_at <= bar.ts), None)
             if "bos" in cfg.e_confirmations and ref is not None and ref.ts >= s.sweep_ts and ((long and bar.close > ref.price) or (not long and bar.close < ref.price)):
-                self._confirm(s, "bos_1m", bar.end, ref.price, 1, f"1m close beyond the 1m swing at {ref.price:g}")
+                self._confirm(s, "bos_1m", bar.end, ref.price, 1, f"1-minute close beyond the 1-minute swing at {money(ref.price)}")
                 self._signal(s, bar.end, bar.close)
             elif "ifvg" in cfg.e_confirmations and (g := self._ifvg(s, bar.end, self.m.gaps1, since=s.cont_ts - 300, formed_after=s.sweep_ts)) is not None:
-                self._confirm(s, "ifvg_1m", bar.end, g.top if long else g.bottom, 1, f"1m close through the opposing 1m gap {g.bottom:g}-{g.top:g}")
+                self._confirm(s, "ifvg_1m", bar.end, g.top if long else g.bottom, 1, f"1m close through the opposing 1m gap {money(g.bottom)} to {money(g.top)}")
                 self._signal(s, bar.end, bar.close)
         self.setups = [s for s in self.setups if not s.dead]
 

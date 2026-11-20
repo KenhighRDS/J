@@ -11,7 +11,7 @@
 - [x] Risk checks, sizing, pessimistic fill simulation, kill switch
 - [x] Backtester, statistics, walk-forward with a frozen protocol and a test-stretch ledger
 - [x] Data files with provenance; Massive downloader; command line; JSON / CSV / HTML reports
-- [x] Tests: 61 (rules, strategy, fills, data, command line, worker link, no look-ahead)
+- [x] Tests: 62 (rules, strategy, fills, data, command line, worker link, no look-ahead, app defaults in step)
 
 ## 3. Real backtest
 - [x] Downloaded 2 years of NQ and ES minute bars (701,769 and 702,151 bars; not committed)
@@ -22,8 +22,9 @@
 ## 4. J integration
 - [x] Migration: tjr_versions, tjr_runs, tjr_trades, tjr_events, tjr_jobs, tjr_datasets, tjr_state; admin-only RLS; assertions
 - [x] Server function tjr-worker and Python worker: publish runs, do jobs, heartbeat (not deployed yet)
-- [ ] Admin > TJR: dashboard, backtests and comparison, candle chart with reasons, builder with versions, journal
-- [ ] Rendered and checked at phone, tablet and desktop widths
+- [x] Admin > TJR: desk (mode, worker, emergency stop), backtests and comparison, run page, trade chart with numbered reasons, builder with versions, journal, setup (worker key, live lock)
+- [x] Rendered and checked at 360, 768 and 1280 px with the real runs; no sideways overflow, no console errors
+- [ ] Deploy: migration, function tjr-worker, web, APK (waits for Wolf to say deploy)
 
 ## 5. Paper and live
 - [ ] Forward paper test (replays each session when its data is released)
